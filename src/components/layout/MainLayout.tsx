@@ -23,7 +23,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       if (e.ctrlKey && e.key === 'Tab') {
         e.preventDefault(); // Prevent browser tab switching
 
-        const pages = ['/inbox', '/categories', '/review', '/settings'];
+        const pages = ['/inbox', '/categories', '/review', '/about'];
         const currentIndex = pages.indexOf(location.pathname);
         
         if (currentIndex === -1) return; // Not on a main page

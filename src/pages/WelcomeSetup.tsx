@@ -41,10 +41,10 @@ const WelcomeSetup: React.FC = () => {
 
           <button
             className="action-btn tertiary"
-            onClick={() => handleAction('/tutorial')}
+            onClick={() => handleAction('/about')}
           >
             <span className="btn-icon"><i className="fa-solid fa-book"></i></span>
-            <span className="btn-text">View Tutorial</span>
+            <span className="btn-text">View About & Help</span>
           </button>
         </div>
 

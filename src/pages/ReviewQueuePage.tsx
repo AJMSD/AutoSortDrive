@@ -554,9 +554,10 @@ const ReviewQueuePage: React.FC = () => {
 
   // Helper function to get status badge
   const getStatusBadge = (file: ReviewFile) => {
-    if (file.source === 'rule-based') {
+    const source = (file.source || '').toLowerCase();
+    if (source === 'rules' || source === 'rule-based') {
       return 'rules-low';
-    } else if (file.source === 'AI') {
+    } else if (source === 'ai') {
       return 'ai-suggested';
     }
     return 'unmatched';

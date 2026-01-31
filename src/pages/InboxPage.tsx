@@ -479,14 +479,14 @@ const InboxPage: React.FC = () => {
   }, [debouncedSearchQuery, selectedTypes, selectedStatus, dateRange, customStartDate, customEndDate]);
   
   // Fetch categories from backend
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; color: string; icon: string }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; color: string; icon: string; fileCount?: number }>>([]);
 
   const loadCategories = async (bypassCache: boolean = false) => {
     try {
       // Try cache first unless bypassing
       if (!bypassCache) {
         const cachedConfigVersion = userCache.getConfigVersion();
-        const cachedCategories = userCache.get<Array<{ id: string; name: string; color: string; icon: string }>>(
+        const cachedCategories = userCache.get<Array<{ id: string; name: string; color: string; icon: string; fileCount?: number }>>(
           'categories',
           { configVersion: cachedConfigVersion ?? undefined }
         );
@@ -508,6 +508,7 @@ const InboxPage: React.FC = () => {
           name: cat.name,
           color: cat.color,
           icon: cat.icon,
+          fileCount: typeof cat.fileCount === 'number' ? cat.fileCount : 0,
         }));
         setCategories(cats);
         userCache.set('categories', cats, { configVersion });

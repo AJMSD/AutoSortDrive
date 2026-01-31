@@ -71,10 +71,6 @@ const CategoriesPage: React.FC = () => {
 
   const iconOptions = ['fa-folder', 'fa-sack-dollar', 'fa-palette', 'fa-chart-simple', 'fa-file-lines', 'fa-house', 'fa-graduation-cap', 'fa-briefcase', 'fa-wrench', 'fa-camera'];
 
-  const handleSelectCategory = (id: string) => {
-    setSelectedCategory(selectedCategory === id ? null : id);
-  };
-
   const toggleCategorySelection = (id: string) => {
     setSelectedCategoryIds(prev => {
       const next = new Set(prev);

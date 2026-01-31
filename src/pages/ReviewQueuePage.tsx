@@ -533,46 +533,6 @@ const ReviewQueuePage: React.FC = () => {
     return 'unmatched';
   };
 
-  const handleAcceptSuggestion = async (file: ReviewFile) => {
-    setRemovingFiles(prev => new Set(prev).add(file.id));
-    
-    try {
-      // Optimistic update is handled automatically by appsScriptClient
-      const response = await appsScriptClient.reviewAccept(file.id, file.fileId);
-      
-      if (response.success) {
-        // No need to invalidate caches - optimistic update already handled it
-        // Just update local UI state
-        setTimeout(() => {
-          setReviewFiles(prev => prev.filter(f => f.id !== file.id));
-          setRemovingFiles(prev => {
-            const next = new Set(prev);
-            next.delete(file.id);
-            return next;
-          });
-        }, 300);
-        
-        toast.success('File categorized successfully!');
-      } else {
-        // Error already handled by optimistic update (rollback happened)
-        toast.error('Failed to accept suggestion: ' + response.error);
-        setRemovingFiles(prev => {
-          const next = new Set(prev);
-          next.delete(file.id);
-          return next;
-        });
-      }
-    } catch (error: any) {
-      // Error already handled by optimistic update (rollback happened)
-      console.error('Error accepting suggestion:', error);
-      setRemovingFiles(prev => {
-        const next = new Set(prev);
-        next.delete(file.id);
-        return next;
-      });
-    }
-  };
-
   const handleRejectSuggestion = async (file: ReviewFile) => {
     setRejectingFiles(prev => new Set(prev).add(file.id));
     
@@ -775,7 +735,6 @@ const ReviewQueuePage: React.FC = () => {
                 categories.find(category => category.id === file.suggestedCategoryId);
               const isRemoving = removingFiles.has(file.id);
               const isRejecting = rejectingFiles.has(file.id);
-              const confidence = animatedConfidence.get(file.id) || file.confidence || 0;
               const canShowAiReason = status === 'ai-suggested' && !!file.reason;
 
               return (

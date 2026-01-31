@@ -377,6 +377,33 @@ const callGemini = async (prompt: string) => {
   return text;
 };
 
+type AutoAssignAssigned = {
+  success: true;
+  assigned: true;
+  categoryId: string;
+  fileId: string;
+  fileName: string;
+};
+
+type AutoAssignReview = {
+  success: true;
+  assigned: false;
+  fileId: string;
+  fileName: string;
+  mimeType?: string;
+  modifiedTime?: string;
+  addedToReview?: boolean;
+};
+
+type AutoAssignFailure = {
+  success: false;
+  error: string;
+  fileId: string;
+  fileName: string;
+};
+
+type AutoAssignResult = AutoAssignAssigned | AutoAssignReview | AutoAssignFailure;
+
 /**
  * Evaluate if a file matches any rules
  * Returns true if the file matches at least one rule
@@ -607,40 +634,6 @@ class UnifiedClient {
     }
 
     return { success: true, movedCount };
-  }
-
-  private async cleanupDriveFolder(
-    accessToken: string,
-    folderId: string
-  ): Promise<{ success: boolean; movedCount: number; error?: string }> {
-    const treeResult = await this.collectFolderTree(accessToken, folderId);
-    if (!treeResult.success) {
-      return {
-        success: false,
-        movedCount: 0,
-        error: treeResult.error || 'Failed to scan folder tree',
-      };
-    }
-
-    const moveResult = await this.reparentFilesToRoot(accessToken, treeResult.files, treeResult.folderIds);
-    if (!moveResult.success) {
-      return {
-        success: false,
-        movedCount: moveResult.movedCount,
-        error: moveResult.error || 'Failed to move files to My Drive',
-      };
-    }
-
-    const trashResult = await driveClient.trashFile(accessToken, folderId);
-    if (!trashResult.success) {
-      return {
-        success: false,
-        movedCount: moveResult.movedCount,
-        error: trashResult.error || 'Failed to trash folder',
-      };
-    }
-
-    return { success: true, movedCount: moveResult.movedCount };
   }
 
   private async syncFolderCategories(
@@ -1505,11 +1498,11 @@ class UnifiedClient {
 
     // Set defaults for rule fields based on type
     const newRule: Rule = {
-      field: rule.type === 'keyword' ? 'filename' : rule.type === 'mimetype' ? 'mimeType' : 'owner',
-      operator: 'contains',
-      caseSensitive: false,
-      enabled: true,
       ...rule,
+      field: rule.field || (rule.type === 'keyword' ? 'filename' : rule.type === 'mimetype' ? 'mimeType' : 'owner'),
+      operator: rule.operator || 'contains',
+      caseSensitive: rule.caseSensitive ?? false,
+      enabled: rule.enabled ?? true,
       id: 'rule_' + Date.now(),
       createdAt: new Date().toISOString(),
     };
@@ -2077,7 +2070,7 @@ class UnifiedClient {
     let assigned = 0;
     for (const fileId of filesToProcess) {
       const result = await this.autoAssign(accessToken, fileId);
-      if (result.assigned) {
+      if (result.success && result.assigned) {
         assigned++;
       }
     }
@@ -2092,7 +2085,7 @@ class UnifiedClient {
   /**
    * Auto-assign single file using rules
    */
-  async autoAssign(accessToken: string, fileId: string) {
+  async autoAssign(accessToken: string, fileId: string): Promise<AutoAssignResult> {
     const config = await configManager.getConfig(accessToken);
     if (!config) {
       return {
@@ -2305,7 +2298,7 @@ class UnifiedClient {
    * Auto-assign a single file with optimistic cache updates
    * This version provides instant UI feedback without cache invalidation
    */
-  async autoAssignOptimistic(accessToken: string, fileId: string) {
+  async autoAssignOptimistic(accessToken: string, fileId: string): Promise<AutoAssignResult> {
     const config = await configManager.getConfig(accessToken);
     if (!config) {
       return {

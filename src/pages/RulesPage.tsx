@@ -24,7 +24,7 @@ interface Rule {
   categoryIcon: string;
   type: 'keyword' | 'mimetype' | 'owner';
   field?: string;
-  operator?: 'contains' | 'equals' | 'starts With' | 'endsWith';
+  operator?: 'contains' | 'equals' | 'startsWith' | 'endsWith' | 'matches';
   value: string;
   caseSensitive?: boolean;
   enabled?: boolean;

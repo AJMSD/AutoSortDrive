@@ -124,6 +124,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: () => Promise<void>;
   logout: () => void;
+  refreshToken: () => Promise<{ success: boolean; error?: string }>;
 }
 
 type GoogleTokenResponse = {

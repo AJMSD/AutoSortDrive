@@ -34,7 +34,7 @@ export interface Rule {
   categoryId: string;
   type: 'keyword' | 'mimetype' | 'owner' | 'custom';
   field: string;
-  operator: 'contains' | 'equals' | 'startsWith' | 'endsWith';
+  operator: 'contains' | 'equals' | 'startsWith' | 'endsWith' | 'matches';
   value: string;
   caseSensitive: boolean;
   enabled: boolean;
@@ -50,6 +50,14 @@ export interface ReviewQueueItem {
   modifiedTime?: string;
   iconLink?: string;
   thumbnailLink?: string;
+  file?: {
+    id: string;
+    name: string;
+    mimeType?: string;
+    modifiedTime?: string;
+    iconLink?: string;
+    thumbnailLink?: string;
+  };
   status: 'pending' | 'accepted' | 'rejected';
   suggestedCategoryId?: string;
   confidence?: number;

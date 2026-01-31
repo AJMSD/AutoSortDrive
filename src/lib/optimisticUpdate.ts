@@ -14,7 +14,6 @@
  */
 
 import { cacheManager } from './cacheManager';
-import type { CacheSnapshot } from './cacheManager';
 import toast from 'react-hot-toast';
 
 // ============================================================================

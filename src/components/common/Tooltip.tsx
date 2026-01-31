@@ -76,6 +76,7 @@ const Tooltip: React.FC<TooltipProps> = ({
         window.removeEventListener('resize', updatePosition);
       };
     }
+    return undefined;
   }, [isVisible]);
 
   return (

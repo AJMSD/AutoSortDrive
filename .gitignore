@@ -1,0 +1,8 @@
+node_modules/
+
+# Local env files
+.env
+.env.*
+
+# Markdown notes (per request)
+*.md

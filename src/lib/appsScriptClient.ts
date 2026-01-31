@@ -124,7 +124,7 @@ class AppsScriptClient {
       return { success: false, error: 'No access token', categories: [] };
     }
 
-    return await unifiedClient.getCategories(accessToken);
+    return await unifiedClient.getCategories(accessToken, _bypassCache);
   }
 
   async getSettings(): Promise<any> {

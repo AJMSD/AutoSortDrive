@@ -204,6 +204,7 @@ class CacheManager {
     // This is a bit brute-force, but necessary for bulk operations
     // In the future, we could track which category caches exist
     userCache.remove('categories');
+    userCache.removeByPrefix('category_files_');
     console.log(`🗑️ Invalidated all category caches`);
   }
 

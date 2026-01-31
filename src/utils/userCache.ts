@@ -144,6 +144,31 @@ class UserCache {
   }
 
   /**
+   * Remove all cache entries for current user that start with a prefix
+   */
+  removeByPrefix(keyPrefix: string): void {
+    const userId = this.getCurrentUserId();
+    if (!userId) return;
+
+    try {
+      const prefix = this.getCacheKey(keyPrefix, userId);
+      const keysToRemove: string[] = [];
+
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      console.log(`🗑️ Removed ${keysToRemove.length} cache entries for prefix: ${keyPrefix}`);
+    } catch (error) {
+      console.error('Failed to remove cache by prefix:', error);
+    }
+  }
+
+  /**
    * Clear all cache for current user
    */
   clearUserCache(): void {

@@ -1040,12 +1040,18 @@ class UnifiedClient {
       };
     }
 
+    const prevSettings = { ...config.settings };
     config.settings = {
       ...config.settings,
       ...settings,
     };
 
     const nextSettings = normalizeAiSettings(config.settings);
+    const settingsChanged =
+      prevSettings.aiEnabled !== nextSettings.aiEnabled ||
+      prevSettings.aiPrimary !== nextSettings.aiPrimary ||
+      prevSettings.aiUseRulesFallback !== nextSettings.aiUseRulesFallback ||
+      prevSettings.aiMinConfidence !== nextSettings.aiMinConfidence;
 
     if (!nextSettings.aiEnabled && Array.isArray(config.reviewQueue)) {
       config.reviewQueue = config.reviewQueue.map(item => {
@@ -1066,6 +1072,8 @@ class UnifiedClient {
         };
       });
 
+      cacheManager.invalidateReviewQueueCache();
+    } else if (settingsChanged) {
       cacheManager.invalidateReviewQueueCache();
     }
 
@@ -1398,6 +1406,9 @@ class UnifiedClient {
 
     config.rules.push(newRule);
     const result = await configManager.updateConfig(accessToken, config);
+    if (result.success) {
+      cacheManager.invalidateReviewQueueCache();
+    }
 
     return {
       ...result,
@@ -1430,7 +1441,11 @@ class UnifiedClient {
       ...updates,
     };
 
-    return await configManager.updateConfig(accessToken, config);
+    const result = await configManager.updateConfig(accessToken, config);
+    if (result.success) {
+      cacheManager.invalidateReviewQueueCache();
+    }
+    return result;
   }
 
   /**
@@ -1446,7 +1461,11 @@ class UnifiedClient {
     }
 
     config.rules = config.rules.filter(r => r.id !== ruleId);
-    return await configManager.updateConfig(accessToken, config);
+    const result = await configManager.updateConfig(accessToken, config);
+    if (result.success) {
+      cacheManager.invalidateReviewQueueCache();
+    }
+    return result;
   }
 
   /**

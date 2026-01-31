@@ -29,14 +29,17 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user }) => {
 
   const MAX_RETRY_COUNT = 2;
 
-  // Initialize theme from localStorage
+  // Initialize theme from localStorage or current document preference
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      document.body.setAttribute('data-theme', savedTheme);
-    }
+    const documentTheme =
+      (document.documentElement.getAttribute('data-theme') as 'light' | 'dark' | null) ||
+      (document.body.getAttribute('data-theme') as 'light' | 'dark' | null);
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initialTheme = savedTheme || documentTheme || (prefersDark ? 'dark' : 'light');
+    setTheme(initialTheme);
+    document.documentElement.setAttribute('data-theme', initialTheme);
+    document.body.setAttribute('data-theme', initialTheme);
   }, []);
 
   // Log when picture URL changes and reset states

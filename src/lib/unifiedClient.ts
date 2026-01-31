@@ -377,32 +377,17 @@ const callGemini = async (prompt: string) => {
   return text;
 };
 
-type AutoAssignAssigned = {
-  success: true;
-  assigned: true;
-  categoryId: string;
-  fileId: string;
-  fileName: string;
-};
-
-type AutoAssignReview = {
-  success: true;
-  assigned: false;
+type AutoAssignResult = {
+  success: boolean;
+  assigned?: boolean;
+  error?: string;
+  categoryId?: string;
   fileId: string;
   fileName: string;
   mimeType?: string;
   modifiedTime?: string;
   addedToReview?: boolean;
 };
-
-type AutoAssignFailure = {
-  success: false;
-  error: string;
-  fileId: string;
-  fileName: string;
-};
-
-type AutoAssignResult = AutoAssignAssigned | AutoAssignReview | AutoAssignFailure;
 
 /**
  * Evaluate if a file matches any rules
@@ -528,113 +513,6 @@ const getRuleMatchCategoryId = (file: any, rules: Rule[]): string | null => {
 class UnifiedClient {
   private lastFolderSyncAt: number = 0;
   private folderSyncPromise: Promise<{ config: AppConfig; createdCount: number }> | null = null;
-
-  private async collectFolderTree(
-    accessToken: string,
-    rootFolderId: string
-  ): Promise<{ success: boolean; folderIds: Set<string>; files: Map<string, any>; error?: string }> {
-    const folderIds = new Set<string>();
-    const files = new Map<string, any>();
-
-    if (!rootFolderId) {
-      return { success: true, folderIds, files };
-    }
-
-    const queue: string[] = [rootFolderId];
-    const MAX_PAGES = 50;
-
-    while (queue.length > 0) {
-      const currentFolderId = queue.shift();
-      if (!currentFolderId || folderIds.has(currentFolderId)) continue;
-      folderIds.add(currentFolderId);
-
-      let pageToken: string | null = null;
-      let pageCount = 0;
-
-      do {
-        const result = await driveClient.listFiles(accessToken, {
-          pageSize: 1000,
-          pageToken: pageToken || undefined,
-          q: `'${currentFolderId}' in parents and trashed = false`,
-          excludeFolders: false,
-        });
-
-        if (!result.success) {
-          return {
-            success: false,
-            folderIds,
-            files,
-            error: result.error || 'Failed to list folder contents',
-          };
-        }
-
-        (result.files || []).forEach((file: any) => {
-          if (!file?.id) return;
-
-          if (file.mimeType === FOLDER_MIME_TYPE) {
-            queue.push(file.id);
-            return;
-          }
-
-          if (files.has(file.id)) {
-            const existing = files.get(file.id);
-            const mergedParents = new Set<string>([
-              ...(Array.isArray(existing?.parents) ? existing.parents : []),
-              ...(Array.isArray(file.parents) ? file.parents : []),
-            ]);
-            files.set(file.id, { ...existing, ...file, parents: Array.from(mergedParents) });
-          } else {
-            files.set(file.id, file);
-          }
-        });
-
-        pageToken = result.nextPageToken || null;
-        pageCount += 1;
-      } while (pageToken && pageCount < MAX_PAGES);
-    }
-
-    return { success: true, folderIds, files };
-  }
-
-  private async reparentFilesToRoot(
-    accessToken: string,
-    files: Map<string, any>,
-    folderIds: Set<string>
-  ): Promise<{ success: boolean; movedCount: number; error?: string }> {
-    let movedCount = 0;
-    const failures: string[] = [];
-
-    for (const [fileId, file] of files.entries()) {
-      const parents = Array.isArray(file?.parents) ? file.parents : [];
-      const removableParents = parents.filter((parentId: string) => folderIds.has(parentId));
-      if (removableParents.length === 0) continue;
-
-      const remainingParents = parents.filter((parentId: string) => !folderIds.has(parentId));
-      const addParents = remainingParents.length === 0 ? ['root'] : [];
-
-      const result = await driveClient.updateFileParents(accessToken, fileId, {
-        addParents,
-        removeParents: removableParents,
-      });
-
-      if (!result.success) {
-        failures.push(fileId);
-        continue;
-      }
-
-      movedCount += 1;
-    }
-
-    if (failures.length > 0) {
-      return {
-        success: false,
-        movedCount,
-        error: `Failed to move ${failures.length} file(s) out of the folder`,
-      };
-    }
-
-    return { success: true, movedCount };
-  }
 
   private async syncFolderCategories(
     accessToken: string,
@@ -1680,7 +1558,8 @@ class UnifiedClient {
         addedAt: item.addedAt || item.createdAt || new Date().toISOString(),
       });
       
-      console.log('  ✅ Added to queue:', file.name);
+      const fileName = file?.name || item.fileName || 'Unknown';
+      console.log('  ✅ Added to queue:', fileName);
     }
 
     console.log('🔍 getReviewQueue: After stored items:', enhancedQueue.length);

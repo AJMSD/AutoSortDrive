@@ -248,7 +248,8 @@ const buildAiPrompt = (file: any, categories: Category[], feedbackSummary?: stri
   return [
     'You are a file categorization assistant.',
     'Choose the best category ID for the file using the category descriptions, keywords, and examples.',
-    'Only choose a category when there is clear positive evidence from name, category description, keywords, or examples.',
+    'Treat category descriptions and constraints as hard rules.',
+    'Only choose a category when there is clear positive evidence from name, keywords, or examples.',
     'If there is any ambiguity or conflict, return null for categoryId.',
     'Use recent corrections as guidance to avoid repeating mistakes.',
     'Only use the provided category IDs or the exact category name. If none fit, return null for categoryId.',

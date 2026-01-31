@@ -414,11 +414,20 @@ body[data-theme='dark'] .about-description,
 body[data-theme='dark'] .step-description,
 body[data-theme='dark'] .resource-description,
 body[data-theme='dark'] .info-text,
+body[data-theme='dark'] .help-list li,
+body[data-theme='dark'] .help-list li strong,
 body[data-theme='dark'] .legal-text,
 body[data-theme='dark'] .legal-link,
 body[data-theme='dark'] .legal-separator,
 body[data-theme='dark'] .external-icon {
   color: var(--color-text-secondary-dark);
+}
+
+body[data-theme='dark'] .about-description,
+body[data-theme='dark'] .step-description,
+body[data-theme='dark'] .info-text,
+body[data-theme='dark'] .help-list li {
+  color: var(--color-text-primary-dark);
 }
 
 body[data-theme='dark'] .version-number {

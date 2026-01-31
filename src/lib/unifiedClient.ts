@@ -346,35 +346,46 @@ const buildFolderCategory = (folder: any): Category => {
 };
 
 const callGemini = async (prompt: string) => {
-  const appsScriptUrl = config.api.appsScriptUrl;
-  if (!appsScriptUrl) return null;
+  const payload = {
+    prompt,
+    model: GEMINI_MODEL,
+    temperature: 0.2,
+    maxOutputTokens: 512,
+  };
 
-  const response = await fetch(`${appsScriptUrl}?path=ai-categorize`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-    body: JSON.stringify({
-      prompt,
-      model: GEMINI_MODEL,
-      temperature: 0.2,
-      maxOutputTokens: 512,
-    }),
-  });
+  const requestJson = async (url: string, contentType: string) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': contentType },
+      body: JSON.stringify(payload),
+    });
 
-  if (!response.ok) {
-    throw new Error(`AI request failed: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`AI request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data?.success) {
+      throw new Error(data?.error || 'AI request failed');
+    }
+
+    const text = typeof data?.text === 'string' ? data.text : '';
+    if (!text.trim()) {
+      console.warn('AI response missing text');
+      return null;
+    }
+    return text;
+  };
+
+  try {
+    return await requestJson('/api/ai-categorize', 'application/json');
+  } catch (error) {
+    const appsScriptUrl = config.api.appsScriptUrl;
+    if (!appsScriptUrl) {
+      throw error;
+    }
+    return await requestJson(`${appsScriptUrl}?path=ai-categorize`, 'text/plain;charset=UTF-8');
   }
-
-  const data = await response.json();
-  if (!data?.success) {
-    throw new Error(data?.error || 'AI request failed');
-  }
-
-  const text = typeof data?.text === 'string' ? data.text : '';
-  if (!text.trim()) {
-    console.warn('AI response missing text');
-    return null;
-  }
-  return text;
 };
 
 type AutoAssignResult = {

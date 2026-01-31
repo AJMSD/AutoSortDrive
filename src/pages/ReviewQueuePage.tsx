@@ -121,53 +121,64 @@ const ReviewQueuePage: React.FC = () => {
           ttl: CACHE_TTL,
           configVersion: cachedConfigVersion ?? undefined,
         });
-        if (cachedQueue && cachedQueue.length >= 0) {
-          const sanitizedQueue = cachedQueue.filter(item => {
-            const mimeType = item.file?.mimeType || item.mimeType || '';
-            return !isExcludedMimeType(mimeType);
-          });
-          if (sanitizedQueue.length !== cachedQueue.length) {
-            userCache.set(CACHE_KEY, sanitizedQueue, {
-              ttl: CACHE_TTL,
-              configVersion: cachedConfigVersion ?? undefined,
-            });
-          }
 
-          logger.debug('???? Using cached review queue:', sanitizedQueue.length, 'items');
-          setReviewFiles(sanitizedQueue);
-          
-          // Animate confidence scores
-          const confidenceMap = new Map<string, number>();
-          sanitizedQueue.forEach((item: ReviewFile) => {
-            if (item.confidence) {
-              confidenceMap.set(item.id, item.confidence);
-            }
-          });
-          setAnimatedConfidence(confidenceMap);
-          setIsLoading(false);
-          
-          // Load categories in background
-          const cachedCategories = userCache.get<Category[]>('categories', {
-            configVersion: cachedConfigVersion ?? undefined,
-          });
-          if (cachedCategories) {
-            setCategories(cachedCategories);
+        const inboxCache = userCache.get<any[]>('inbox_all_files', {
+          configVersion: cachedConfigVersion ?? undefined,
+        }) || [];
+        const inboxHasInReview = inboxCache.some(file => file?.inReview);
+
+        if (cachedQueue && cachedQueue.length >= 0) {
+          if (cachedQueue.length == 0 && inboxHasInReview) {
+            // Force refresh when inbox indicates review items but cache is empty
+            forceRefresh = true;
           } else {
-            appsScriptClient.getCategories().then(res => {
-              if (res.success) {
-                const configVersion =
-                  typeof res.configVersion === 'number' && Number.isFinite(res.configVersion)
-                    ? res.configVersion
-                    : undefined;
-                if (configVersion !== undefined) {
-                  userCache.setConfigVersion(configVersion);
-                }
-                setCategories(res.categories || []);
-                userCache.set('categories', res.categories || [], { configVersion });
+            const sanitizedQueue = cachedQueue.filter(item => {
+              const mimeType = item.file?.mimeType || item.mimeType || '';
+              return !isExcludedMimeType(mimeType);
+            });
+            if (sanitizedQueue.length !== cachedQueue.length) {
+              userCache.set(CACHE_KEY, sanitizedQueue, {
+                ttl: CACHE_TTL,
+                configVersion: cachedConfigVersion ?? undefined,
+              });
+            }
+
+            logger.debug('???? Using cached review queue:', sanitizedQueue.length, 'items');
+            setReviewFiles(sanitizedQueue);
+            
+            // Animate confidence scores
+            const confidenceMap = new Map<string, number>();
+            sanitizedQueue.forEach((item: ReviewFile) => {
+              if (item.confidence) {
+                confidenceMap.set(item.id, item.confidence);
               }
             });
+            setAnimatedConfidence(confidenceMap);
+            setIsLoading(false);
+            
+            // Load categories in background
+            const cachedCategories = userCache.get<Category[]>('categories', {
+              configVersion: cachedConfigVersion ?? undefined,
+            });
+            if (cachedCategories) {
+              setCategories(cachedCategories);
+            } else {
+              appsScriptClient.getCategories().then(res => {
+                if (res.success) {
+                  const configVersion =
+                    typeof res.configVersion === 'number' && Number.isFinite(res.configVersion)
+                      ? res.configVersion
+                      : undefined;
+                  if (configVersion !== undefined) {
+                    userCache.setConfigVersion(configVersion);
+                  }
+                  setCategories(res.categories || []);
+                  userCache.set('categories', res.categories || [], { configVersion });
+                }
+              });
+            }
+            return; // Use cached data
           }
-          return; // Use cached data
         }
       }
       

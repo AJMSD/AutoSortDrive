@@ -22,6 +22,8 @@ interface CacheOptions {
 class UserCache {
   private static STORAGE_PREFIX = 'autosortdrive_cache_';
   private static DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
+  private static CONFIG_VERSION_KEY = 'config_version';
+  private static CONFIG_VERSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
   /**
    * Get current user ID from session storage
@@ -141,6 +143,20 @@ class UserCache {
       console.error('Failed to remove cache:', error);
       return false;
     }
+  }
+
+  setConfigVersion(version: number): boolean {
+    if (!Number.isFinite(version)) return false;
+    return this.set<number>(UserCache.CONFIG_VERSION_KEY, version, {
+      ttl: UserCache.CONFIG_VERSION_TTL,
+    });
+  }
+
+  getConfigVersion(): number | null {
+    const value = this.get<number>(UserCache.CONFIG_VERSION_KEY, {
+      ttl: UserCache.CONFIG_VERSION_TTL,
+    });
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
   }
 
   /**

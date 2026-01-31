@@ -78,6 +78,11 @@ const CACHE_KEYS = {
 // ============================================================================
 
 class CacheManager {
+  private getCurrentConfigVersion(): number | undefined {
+    const version = userCache.getConfigVersion();
+    return typeof version === 'number' ? version : undefined;
+  }
+
   /**
    * Get all files from inbox cache (single source of truth)
    */
@@ -89,7 +94,9 @@ class CacheManager {
    * Set all files in inbox cache
    */
   setFilesCache(files: FileItem[], options?: { configVersion?: number }): void {
-    userCache.set(CACHE_KEYS.INBOX_FILES, files, options);
+    const configVersion =
+      typeof options?.configVersion === 'number' ? options.configVersion : this.getCurrentConfigVersion();
+    userCache.set(CACHE_KEYS.INBOX_FILES, files, { ...options, configVersion });
   }
 
   /**
@@ -288,7 +295,8 @@ class CacheManager {
         : cat
     );
 
-    userCache.set(CACHE_KEYS.CATEGORIES, updated);
+    const configVersion = this.getCurrentConfigVersion();
+    userCache.set(CACHE_KEYS.CATEGORIES, updated, { configVersion });
     console.log(`✅ Updated category count: ${categoryId} (${delta > 0 ? '+' : ''}${delta})`);
   }
 

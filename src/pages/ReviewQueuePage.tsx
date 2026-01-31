@@ -112,17 +112,24 @@ const ReviewQueuePage: React.FC = () => {
     try {
       const CACHE_KEY = 'review_queue';
       const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+      const cachedConfigVersion = userCache.getConfigVersion();
       
       // Try cache first unless force refresh
       if (!forceRefresh) {
-        const cachedQueue = userCache.get<ReviewFile[]>(CACHE_KEY, { ttl: CACHE_TTL });
+        const cachedQueue = userCache.get<ReviewFile[]>(CACHE_KEY, {
+          ttl: CACHE_TTL,
+          configVersion: cachedConfigVersion ?? undefined,
+        });
         if (cachedQueue && cachedQueue.length >= 0) {
           const sanitizedQueue = cachedQueue.filter(item => {
             const mimeType = item.file?.mimeType || item.mimeType || '';
             return !isExcludedMimeType(mimeType);
           });
           if (sanitizedQueue.length !== cachedQueue.length) {
-            userCache.set(CACHE_KEY, sanitizedQueue, { ttl: CACHE_TTL });
+            userCache.set(CACHE_KEY, sanitizedQueue, {
+              ttl: CACHE_TTL,
+              configVersion: cachedConfigVersion ?? undefined,
+            });
           }
 
           console.log('???? Using cached review queue:', sanitizedQueue.length, 'items');
@@ -139,14 +146,23 @@ const ReviewQueuePage: React.FC = () => {
           setIsLoading(false);
           
           // Load categories in background
-          const cachedCategories = userCache.get<Category[]>('categories');
+          const cachedCategories = userCache.get<Category[]>('categories', {
+            configVersion: cachedConfigVersion ?? undefined,
+          });
           if (cachedCategories) {
             setCategories(cachedCategories);
           } else {
             appsScriptClient.getCategories().then(res => {
               if (res.success) {
+                const configVersion =
+                  typeof res.configVersion === 'number' && Number.isFinite(res.configVersion)
+                    ? res.configVersion
+                    : undefined;
+                if (configVersion !== undefined) {
+                  userCache.setConfigVersion(configVersion);
+                }
                 setCategories(res.categories || []);
-                userCache.set('categories', res.categories || []);
+                userCache.set('categories', res.categories || [], { configVersion });
               }
             });
           }
@@ -156,7 +172,9 @@ const ReviewQueuePage: React.FC = () => {
       
       // Cache miss or force refresh - load from API
       console.log('🔄 Loading review queue from API...');
-      const cachedCategories = userCache.get<Category[]>('categories');
+      const cachedCategories = userCache.get<Category[]>('categories', {
+        configVersion: cachedConfigVersion ?? undefined,
+      });
       
       // Load categories and review queue in parallel
       const [categoriesRes, queueRes] = await Promise.all([
@@ -167,7 +185,14 @@ const ReviewQueuePage: React.FC = () => {
       if (categoriesRes.success) {
         setCategories(categoriesRes.categories || []);
         if (!cachedCategories) {
-          userCache.set('categories', categoriesRes.categories || []);
+          const configVersion =
+            typeof categoriesRes.configVersion === 'number' && Number.isFinite(categoriesRes.configVersion)
+              ? categoriesRes.configVersion
+              : undefined;
+          if (configVersion !== undefined) {
+            userCache.setConfigVersion(configVersion);
+          }
+          userCache.set('categories', categoriesRes.categories || [], { configVersion });
         }
       }
 
@@ -179,7 +204,10 @@ const ReviewQueuePage: React.FC = () => {
         setReviewFiles(queueItems);
         
         // Cache the review queue
-        userCache.set(CACHE_KEY, queueItems, { ttl: CACHE_TTL });
+        userCache.set(CACHE_KEY, queueItems, {
+          ttl: CACHE_TTL,
+          configVersion: cachedConfigVersion ?? undefined,
+        });
         console.log('💾 Cached review queue:', queueItems.length, 'items');
         
         // Debug logging

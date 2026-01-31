@@ -86,59 +86,157 @@ const CategoryViewPage: React.FC = () => {
   useEffect(() => {
     if (!categoryId) return;
 
-    setIsLoading(true);
-    setIsInboxCacheEmpty(false);
+    let isActive = true;
 
-    try {
-      const cachedCategories = userCache.get<Category[]>('categories');
-      const foundCategory = cachedCategories?.find(c => c.id === categoryId) || null;
+    const loadCategory = async () => {
+      setIsLoading(true);
+      setIsInboxCacheEmpty(false);
 
-      if (!foundCategory) {
-        setCategory(null);
-        setFiles([]);
+      try {
+        const cachedConfigVersion = userCache.getConfigVersion();
+        const cachedCategories = userCache.get<Category[]>('categories', {
+          configVersion: cachedConfigVersion ?? undefined,
+        });
+        const foundCategory = cachedCategories?.find(c => c.id === categoryId) || null;
+
+        if (!foundCategory) {
+          if (!isActive) return;
+          setCategory(null);
+          setFiles([]);
+          setIsLoading(false);
+          return;
+        }
+
+        if (!isActive) return;
+        setCategory(foundCategory);
+
+        const inboxCache = userCache.get<any[]>('inbox_all_files', {
+          configVersion: cachedConfigVersion ?? undefined,
+        });
+        if (!inboxCache || !Array.isArray(inboxCache) || inboxCache.length === 0) {
+          // Fallback: fetch files to hydrate cache for this category view.
+          const params: any = { pageSize: 1000 };
+          const firstResponse = await appsScriptClient.listFiles(params);
+          if (!firstResponse.success) {
+            if (!isActive) return;
+            setFiles([]);
+            setIsInboxCacheEmpty(true);
+            setIsLoading(false);
+            return;
+          }
+
+          const configVersion =
+            typeof firstResponse.configVersion === 'number' && Number.isFinite(firstResponse.configVersion)
+              ? firstResponse.configVersion
+              : undefined;
+          if (configVersion !== undefined) {
+            userCache.setConfigVersion(configVersion);
+          }
+
+          const mapFiles = (items: any[]) =>
+            items.map((file: any) => ({
+              id: file.id,
+              name: file.name,
+              mimeType: file.mimeType,
+              type: file.type || getFileType(file.mimeType),
+              modified: getRelativeTime(file.modifiedTime),
+              modifiedDate: new Date(file.modifiedTime),
+              selected: false,
+              parents: file.parents || [],
+              thumbnailLink: file.thumbnailLink,
+              iconLink: file.iconLink,
+              assignmentMeta: file.assignmentMeta || undefined,
+              categoryId: file.categoryId,
+            }));
+
+          let allFiles = mapFiles(firstResponse.files || []);
+          let pageToken: string | null = firstResponse.nextPageToken || null;
+          let pageCount = 0;
+          const MAX_PAGES = 100;
+
+          while (pageToken && pageCount < MAX_PAGES) {
+            pageCount += 1;
+            const response = await appsScriptClient.listFiles({ ...params, cursor: pageToken });
+            if (!response.success) break;
+            allFiles = [...allFiles, ...mapFiles(response.files || [])];
+            pageToken = response.nextPageToken || null;
+          }
+
+          userCache.set('inbox_all_files', allFiles, { configVersion });
+
+          const folderId = foundCategory.driveFolderId;
+          const categoryFiles = allFiles
+            .filter((file: any) => {
+              const matchesAssignment = file.categoryId === categoryId;
+              const matchesFolder =
+                folderId && Array.isArray(file.parents) && file.parents.includes(folderId);
+              return matchesAssignment || matchesFolder;
+            })
+            .map((file: any) => {
+              const modifiedDate =
+                file.modifiedDate instanceof Date
+                  ? file.modifiedDate
+                  : new Date(file.modifiedDate || file.modifiedTime);
+              return {
+                id: file.id,
+                name: file.name,
+                mimeType: file.mimeType,
+                type: file.type || getFileType(file.mimeType),
+                modified: getRelativeTime(modifiedDate.toISOString()),
+                modifiedDate,
+                selected: false,
+                parents: file.parents || [],
+                thumbnailLink: file.thumbnailLink,
+                iconLink: file.iconLink,
+                assignmentMeta: file.assignmentMeta || undefined,
+              };
+            });
+
+          if (!isActive) return;
+          setFiles(categoryFiles);
+          setIsInboxCacheEmpty(false);
+          setIsLoading(false);
+          return;
+        }
+
+        const folderId = foundCategory.driveFolderId;
+        const categoryFiles = inboxCache
+          .filter((file: any) => {
+            const matchesAssignment = file.categoryId === categoryId;
+            const matchesFolder =
+              folderId && Array.isArray(file.parents) && file.parents.includes(folderId);
+            return matchesAssignment || matchesFolder;
+          })
+          .map((file: any) => ({
+            id: file.id,
+            name: file.name,
+            mimeType: file.mimeType,
+            type: file.type || getFileType(file.mimeType),
+            modified: file.modified || getRelativeTime(new Date(file.modifiedDate).toISOString()),
+            modifiedDate: new Date(file.modifiedDate),
+            selected: false,
+            parents: file.parents || [],
+            thumbnailLink: file.thumbnailLink,
+            iconLink: file.iconLink,
+            assignmentMeta: file.assignmentMeta || undefined,
+          }));
+
+        if (!isActive) return;
+        setFiles(categoryFiles);
         setIsLoading(false);
-        return;
-      }
-
-      setCategory(foundCategory);
-
-      const inboxCache = userCache.get<any[]>('inbox_all_files');
-      if (!inboxCache || !Array.isArray(inboxCache) || inboxCache.length == 0) {
-        setFiles([]);
-        setIsInboxCacheEmpty(true);
+      } catch (error) {
+        console.error('Error loading category:', error);
+        toast.error('Error loading category');
+        if (!isActive) return;
         setIsLoading(false);
-        return;
       }
+    };
 
-      const folderId = foundCategory.driveFolderId;
-      const categoryFiles = inboxCache
-        .filter((file: any) => {
-          const matchesAssignment = file.categoryId === categoryId;
-          const matchesFolder =
-            folderId && Array.isArray(file.parents) && file.parents.includes(folderId);
-          return matchesAssignment || matchesFolder;
-        })
-        .map((file: any) => ({
-          id: file.id,
-          name: file.name,
-          mimeType: file.mimeType,
-          type: file.type || getFileType(file.mimeType),
-          modified: file.modified || getRelativeTime(new Date(file.modifiedDate).toISOString()),
-          modifiedDate: new Date(file.modifiedDate),
-          selected: false,
-          parents: file.parents || [],
-          thumbnailLink: file.thumbnailLink,
-          iconLink: file.iconLink,
-          assignmentMeta: file.assignmentMeta || undefined,
-        }));
+    void loadCategory();
 
-      setFiles(categoryFiles);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error loading category:', error);
-      toast.error('Error loading category');
-      setIsLoading(false);
-    }
+    return () => {
+      isActive = false;
+    };
   }, [categoryId]);
 
   const toggleFileSelection = (fileId: string) => {
@@ -217,7 +315,8 @@ const CategoryViewPage: React.FC = () => {
               ? { ...f, categoryId: null, categorized: false }
               : f
           );
-          userCache.set(inboxCacheKey, updatedInboxFiles);
+          const currentConfigVersion = userCache.getConfigVersion();
+          userCache.set(inboxCacheKey, updatedInboxFiles, { configVersion: currentConfigVersion ?? undefined });
           console.log(`?? Updated inbox cache to remove category from ${removableFiles.length} files`);
         }
         
@@ -229,7 +328,8 @@ const CategoryViewPage: React.FC = () => {
               ? { ...c, fileCount: Math.max(0, c.fileCount - removableFiles.length) }
               : c
           );
-          userCache.set('categories', updatedCategories);
+          const currentConfigVersion = userCache.getConfigVersion();
+          userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
           console.log(`?? Updated category count in cache (-${removableFiles.length})`);
         }
         

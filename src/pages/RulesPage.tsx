@@ -72,7 +72,10 @@ const RulesPage: React.FC = () => {
   const loadCategories = async () => {
     try {
       // Try cache first
-      const cachedCategories = userCache.get<Category[]>('categories');
+      const cachedConfigVersion = userCache.getConfigVersion();
+      const cachedCategories = userCache.get<Category[]>('categories', {
+        configVersion: cachedConfigVersion ?? undefined,
+      });
       if (cachedCategories) {
         console.log('📦 Loading categories from user cache');
         setCategories(cachedCategories);
@@ -81,8 +84,15 @@ const RulesPage: React.FC = () => {
       
       const response = await appsScriptClient.getCategories();
       if (response.success) {
+        const configVersion =
+          typeof response.configVersion === 'number' && Number.isFinite(response.configVersion)
+            ? response.configVersion
+            : undefined;
+        if (configVersion !== undefined) {
+          userCache.setConfigVersion(configVersion);
+        }
         setCategories(response.categories || []);
-        userCache.set('categories', response.categories || []);
+        userCache.set('categories', response.categories || [], { configVersion });
       } else {
         toast.error('Failed to load categories');
       }

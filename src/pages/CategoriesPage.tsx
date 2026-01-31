@@ -153,7 +153,10 @@ const CategoriesPage: React.FC = () => {
 
   // Derive counts from locally cached inbox files when available to avoid stale backend counts
   const applyLocalFileCounts = (cats: Category[]) => {
-    const inbox = userCache.get<any[]>('inbox_all_files');
+    const cachedConfigVersion = userCache.getConfigVersion();
+    const inbox = userCache.get<any[]>('inbox_all_files', {
+      configVersion: cachedConfigVersion ?? undefined,
+    });
     if (!inbox || !Array.isArray(inbox)) return cats;
 
     const folderCategoryById = new Map<string, string>();
@@ -196,7 +199,11 @@ const CategoriesPage: React.FC = () => {
   const loadCategories = async (bypassCache: boolean = false) => {
     // If not bypassing cache, show cached data immediately while fetching fresh
     if (!bypassCache) {
-      const cachedData = userCache.get<typeof categories>('categories', { ttl: 30 * 60 * 1000 }); // 30 min TTL
+      const cachedConfigVersion = userCache.getConfigVersion();
+      const cachedData = userCache.get<typeof categories>('categories', {
+        ttl: 30 * 60 * 1000,
+        configVersion: cachedConfigVersion ?? undefined,
+      }); // 30 min TTL
       if (cachedData) {
         setCategories(applyLocalFileCounts(cachedData));
         setIsLoading(false);
@@ -218,9 +225,15 @@ const CategoriesPage: React.FC = () => {
     try {
       const response = await appsScriptClient.getCategories(true); // Always bypass cache in client
       if (response.success) {
+        const configVersion = typeof response.configVersion === 'number' && Number.isFinite(response.configVersion)
+          ? response.configVersion
+          : undefined;
+        if (configVersion !== undefined) {
+          userCache.setConfigVersion(configVersion);
+        }
         const withCounts = applyLocalFileCounts(response.categories);
         setCategories(withCounts);
-        userCache.set('categories', withCounts); // Update cache with fresh data
+        userCache.set('categories', withCounts, { configVersion }); // Update cache with fresh data
         console.log('✅ Loaded fresh categories:', response.categories.length);
         if (response.autoCreatedCount && response.autoCreatedCount > 0) {
           const toastKey = `${response.autoCreatedCount}-${response.categories.length}`;
@@ -346,7 +359,8 @@ const CategoriesPage: React.FC = () => {
               ? { ...cat, ...response.category, fileCount: cat.fileCount }
               : cat
           );
-          userCache.set('categories', updatedCategories);
+          const currentConfigVersion = userCache.getConfigVersion();
+          userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
           console.log('🔄 Updated category in cache');
           
           toast.success(`Category "${formData.name}" updated successfully!`);
@@ -372,7 +386,8 @@ const CategoriesPage: React.FC = () => {
           setCategories([...categories, newCategory]);
           
           // Update cache with new category
-          userCache.set('categories', [...categories, newCategory]);
+          const currentConfigVersion = userCache.getConfigVersion();
+          userCache.set('categories', [...categories, newCategory], { configVersion: currentConfigVersion ?? undefined });
           console.log('🔄 Added new category to cache');
           
           toast.success(`Category "${formData.name}" created successfully!`);
@@ -411,7 +426,8 @@ const CategoriesPage: React.FC = () => {
           setCategories(updatedCategories);
           
           // Remove from cache
-          userCache.set('categories', updatedCategories);
+          const currentConfigVersion = userCache.getConfigVersion();
+          userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
           console.log('🔄 Removed category from cache');
           
           setShowModal(false);
@@ -460,7 +476,8 @@ const CategoriesPage: React.FC = () => {
     if (succeeded.length > 0) {
       const updatedCategories = categories.filter(cat => !succeeded.includes(cat.id));
       setCategories(updatedCategories);
-      userCache.set('categories', updatedCategories);
+      const currentConfigVersion = userCache.getConfigVersion();
+      userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
     }
 
     clearCategorySelection();

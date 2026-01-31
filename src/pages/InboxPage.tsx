@@ -102,6 +102,11 @@ const InboxPage: React.FC = () => {
     return 'inbox_all_files';
   };
 
+  const normalizeConfigVersion = (value: unknown): number | undefined => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+    return value;
+  };
+
   // Fetch files from backend - progressive loading
   const fetchFiles = async () => {
     const cacheKey = getCacheKey();
@@ -109,11 +114,15 @@ const InboxPage: React.FC = () => {
     // TODO [CACHE-SYNC-4]: For first load, we don't have config version yet,
     // so we can't validate staleness. We'll get it after first API call.
     // This is intentional - cache validation happens on subsequent page loads.
-    const cachedFiles = userCache.get<FileItem[]>(cacheKey, { ttl: 5 * 60 * 1000 });
+    const cachedConfigVersion = userCache.getConfigVersion();
+    const cachedFiles = userCache.get<FileItem[]>(cacheKey, {
+      ttl: 5 * 60 * 1000,
+      configVersion: cachedConfigVersion ?? undefined,
+    });
     if (cachedFiles && cachedFiles.length > 0) {
       const sanitizedCache = cachedFiles.filter(file => !isExcludedMimeType(file.mimeType));
       if (sanitizedCache.length !== cachedFiles.length) {
-        userCache.set(cacheKey, sanitizedCache);
+        userCache.set(cacheKey, sanitizedCache, { configVersion: cachedConfigVersion ?? undefined });
         console.log('Removed folders/shortcuts from cached inbox files');
       }
 
@@ -143,7 +152,10 @@ const InboxPage: React.FC = () => {
       const firstResponse = await appsScriptClient.listFiles(params);
       
       // TODO [CACHE-SYNC-4]: Extract config version for cache tracking
-      const configVersion = firstResponse.configVersion;
+      const configVersion = normalizeConfigVersion(firstResponse.configVersion);
+      if (configVersion !== undefined) {
+        userCache.setConfigVersion(configVersion);
+      }
       
       // DEBUG: Check if backend is returning inReview flag
       console.log('🔍 DEBUG: First response from backend:', {
@@ -199,7 +211,7 @@ const InboxPage: React.FC = () => {
           fetchRemainingPages(params, firstResponse.nextPageToken, mappedFiles, configVersion);
         } else {
           // No more pages - cache the files now
-          userCache.set(cacheKey, mappedFiles);
+          userCache.set(cacheKey, mappedFiles, { configVersion });
           console.log('💾 Cached all files:', mappedFiles.length);
           void prefetchDownloadMetadata(mappedFiles);
         }
@@ -308,6 +320,9 @@ const InboxPage: React.FC = () => {
       
       // TODO [CACHE-SYNC-4]: Cache with config version for staleness detection
       const cacheKey = getCacheKey();
+      if (configVersion !== undefined) {
+        userCache.setConfigVersion(configVersion);
+      }
       userCache.set(cacheKey, allFiles, { configVersion });
       if (allFiles.length > 0) {
         void prefetchDownloadMetadata(allFiles);
@@ -324,7 +339,10 @@ const InboxPage: React.FC = () => {
       const response = await appsScriptClient.listFiles(params);
       
       // TODO [CACHE-SYNC-4]: Extract config version for cache tracking
-      const configVersion = response.configVersion;
+      const configVersion = normalizeConfigVersion(response.configVersion);
+      if (configVersion !== undefined) {
+        userCache.setConfigVersion(configVersion);
+      }
       
       if (response.success) {
         const newFiles: FileItem[] = response.files
@@ -405,7 +423,11 @@ const InboxPage: React.FC = () => {
     if (!location.state) return;
     
     const cacheKey = getCacheKey();
-    const cachedFiles = userCache.get<FileItem[]>(cacheKey, { ttl: 5 * 60 * 1000 });
+    const cachedConfigVersion = userCache.getConfigVersion();
+    const cachedFiles = userCache.get<FileItem[]>(cacheKey, {
+      ttl: 5 * 60 * 1000,
+      configVersion: cachedConfigVersion ?? undefined,
+    });
     
     // If cache is missing (was invalidated by another page), fetch fresh data
     if (!cachedFiles || cachedFiles.length === 0) {
@@ -462,7 +484,11 @@ const InboxPage: React.FC = () => {
     try {
       // Try cache first unless bypassing
       if (!bypassCache) {
-        const cachedCategories = userCache.get<Array<{ id: string; name: string; color: string; icon: string }>>('categories');
+        const cachedConfigVersion = userCache.getConfigVersion();
+        const cachedCategories = userCache.get<Array<{ id: string; name: string; color: string; icon: string }>>(
+          'categories',
+          { configVersion: cachedConfigVersion ?? undefined }
+        );
         if (cachedCategories) {
           console.log('📦 Loading categories from user cache');
           setCategories(cachedCategories);
@@ -472,6 +498,10 @@ const InboxPage: React.FC = () => {
       
       const response = await appsScriptClient.getCategories(bypassCache);
       if (response.success) {
+        const configVersion = normalizeConfigVersion(response.configVersion);
+        if (configVersion !== undefined) {
+          userCache.setConfigVersion(configVersion);
+        }
         const cats = response.categories.map((cat: any) => ({
           id: cat.id,
           name: cat.name,
@@ -479,7 +509,7 @@ const InboxPage: React.FC = () => {
           icon: cat.icon,
         }));
         setCategories(cats);
-        userCache.set('categories', cats);
+        userCache.set('categories', cats, { configVersion });
         console.log('✅ Loaded categories for inbox:', response.categories.length);
       }
     } catch (error) {
@@ -646,7 +676,9 @@ const InboxPage: React.FC = () => {
         
         // Reload files from cache to reflect optimistic updates
         // The cache was already updated by batchAutoAssignOptimistic
-        const cachedFiles = userCache.get<FileItem[]>(getCacheKey());
+        const cachedFiles = userCache.get<FileItem[]>(getCacheKey(), {
+          configVersion: userCache.getConfigVersion() ?? undefined,
+        });
         if (cachedFiles) {
           // Clear selections on updated files
           const updatedFiles = cachedFiles.map(f => ({ ...f, selected: false }));
@@ -767,8 +799,8 @@ const InboxPage: React.FC = () => {
       );
       setFiles(updatedFiles);
       
-      // TODO [CACHE-SYNC-4]: Don't include configVersion - see comment at line ~488
-      userCache.set(getCacheKey(), updatedFiles);
+      const currentConfigVersion = userCache.getConfigVersion();
+      userCache.set(getCacheKey(), updatedFiles, { configVersion: currentConfigVersion ?? undefined });
       
       const categoryName = categories.find(c => c.id === categoryId)?.name || 'category';
       toast.success(`Successfully assigned ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} to ${categoryName}`);
@@ -784,13 +816,27 @@ const InboxPage: React.FC = () => {
       try {
         const categoriesCache = userCache.get('categories');
         if (categoriesCache && Array.isArray(categoriesCache)) {
+          const outgoingCounts = new Map<string, number>();
+          let incomingCount = 0;
+
+          selectedFiles.forEach(file => {
+            if (file.categoryId && file.categoryId !== categoryId) {
+              outgoingCounts.set(file.categoryId, (outgoingCounts.get(file.categoryId) || 0) + 1);
+            }
+            if (file.categoryId !== categoryId) {
+              incomingCount += 1;
+            }
+          });
+
           const updatedCategories = categoriesCache.map((cat: any) =>
             cat.id === categoryId
-              ? { ...cat, fileCount: (cat.fileCount || 0) + selectedFiles.length }
-              : cat
+              ? { ...cat, fileCount: Math.max(0, (cat.fileCount || 0) + incomingCount) }
+              : outgoingCounts.has(cat.id)
+                ? { ...cat, fileCount: Math.max(0, (cat.fileCount || 0) - (outgoingCounts.get(cat.id) || 0)) }
+                : cat
           );
-          userCache.set('categories', updatedCategories);
-          console.log(`🔄 Updated category count in cache (+${selectedFiles.length})`);
+          userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
+          console.log(`🔄 Updated category count in cache (+${incomingCount})`);
         }
       } catch (e) {
         console.error('Failed to update categories cache:', e);

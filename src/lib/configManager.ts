@@ -13,7 +13,14 @@
 
 import { driveClient } from './driveClient';
 
+const parseTimestamp = (value?: string): number => {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
 const CONFIG_FILE_NAME = 'autosortdrive-config.json';
+const CONFIG_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
 export interface Category {
   id: string;
@@ -141,6 +148,8 @@ export interface AppConfig {
 class ConfigManager {
   private configFileId: string | null = null;
   private cachedConfig: AppConfig | null = null;
+  private cachedConfigVersion: number | null = null;
+  private cachedConfigAt: number | null = null;
 
   /**
    * Get default config structure
@@ -323,6 +332,8 @@ class ConfigManager {
         });
 
         this.cachedConfig = config;
+        this.cachedConfigVersion = parseTimestamp(config.updatedAt);
+        this.cachedConfigAt = Date.now();
         console.log('✅ Config loaded:', {
           categories: config.categories?.length || 0,
           assignments: Object.keys(config.assignments || {}).length,
@@ -360,6 +371,8 @@ class ConfigManager {
 
       this.configFileId = createResult.file.id;
       this.cachedConfig = defaultConfig;
+      this.cachedConfigVersion = parseTimestamp(defaultConfig.updatedAt);
+      this.cachedConfigAt = Date.now();
 
       console.log('✅ New config file created:', createResult.file.id);
 
@@ -383,7 +396,9 @@ class ConfigManager {
   async getConfig(accessToken: string, forceRefresh: boolean = false): Promise<AppConfig | null> {
     // Return cached if available and not forcing refresh
     if (this.cachedConfig && !forceRefresh) {
-      return this.cachedConfig;
+      if (this.cachedConfigAt && Date.now() - this.cachedConfigAt < CONFIG_CACHE_TTL_MS) {
+        return this.cachedConfig;
+      }
     }
 
     // Initialize or reload from Drive
@@ -417,6 +432,8 @@ class ConfigManager {
 
       if (result.success) {
         this.cachedConfig = config;
+        this.cachedConfigVersion = parseTimestamp(config.updatedAt);
+        this.cachedConfigAt = Date.now();
         console.log('✅ Config saved successfully');
       }
 
@@ -523,6 +540,12 @@ class ConfigManager {
   clearCache() {
     this.configFileId = null;
     this.cachedConfig = null;
+    this.cachedConfigVersion = null;
+    this.cachedConfigAt = null;
+  }
+
+  getCachedConfigVersion(): number | null {
+    return this.cachedConfigVersion;
   }
 }
 

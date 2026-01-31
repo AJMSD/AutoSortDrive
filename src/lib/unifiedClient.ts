@@ -924,7 +924,6 @@ class UnifiedClient {
     const reviewQueue = effectiveConfig.reviewQueue || [];
     const assignmentMeta = effectiveConfig.assignmentMeta || {};
     
-    // TODO [CACHE-SYNC-4]: Extract config version for cache tracking
     const configVersion = effectiveConfig.updatedAt ? new Date(effectiveConfig.updatedAt).getTime() : Date.now();
     console.log('� listFiles: Config loaded - rules:', rules.length, 'reviewQueue:', reviewQueue.length);
     
@@ -978,7 +977,7 @@ class UnifiedClient {
     return {
       ...filesResult,
       files: enhancedFiles,
-      configVersion, // TODO [CACHE-SYNC-4]: Return config version for cache staleness detection
+      configVersion,
     };
   }
 
@@ -998,6 +997,7 @@ class UnifiedClient {
 
     const syncResult = await this.syncFolderCategories(accessToken, config, { force: true });
     const effectiveConfig = syncResult.config;
+    const configVersion = parseTimestamp(effectiveConfig.updatedAt) || Date.now();
 
     // Add file counts to categories
     const categoriesWithCounts = effectiveConfig.categories.map(cat => ({
@@ -1009,6 +1009,7 @@ class UnifiedClient {
       success: true,
       categories: categoriesWithCounts,
       autoCreatedCount: syncResult.createdCount,
+      configVersion,
     };
   }
 

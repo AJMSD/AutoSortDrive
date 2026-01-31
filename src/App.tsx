@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
@@ -12,6 +12,7 @@ import ReviewQueuePage from '@/pages/ReviewQueuePage';
 import RulesPage from '@/pages/RulesPage';
 import AboutPage from '@/pages/AboutPage';
 import DiagnosticsPage from '@/pages/DiagnosticsPage';
+import { config } from '@/lib/config';
 import './App.css';
 
 // Animated Routes wrapper
@@ -24,7 +25,18 @@ const AnimatedRoutes: React.FC = () => {
         {/* Landing/Sign-in page without navbar */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/welcome" element={<WelcomeSetup />} />
-        <Route path="/diagnostics" element={<DiagnosticsPage />} />
+        <Route
+          path="/diagnostics"
+          element={
+            config.features.debugMode ? (
+              <ProtectedRoute>
+                <DiagnosticsPage />
+              </ProtectedRoute>
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
 
         {/* Pages with navbar */}
         <Route

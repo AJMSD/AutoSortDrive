@@ -26,6 +26,13 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const [textContent, setTextContent] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const openInNewTab = (url: string) => {
+    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    if (newWindow) {
+      newWindow.opener = null;
+    }
+  };
+
   useEffect(() => {
     loadFileData();
     
@@ -189,7 +196,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           <span className="error-icon">⚠️</span>
           <p>{loadError || 'Unable to load preview'}</p>
           {viewData?.webViewLink && (
-            <button className="btn-primary" onClick={() => window.open(viewData.webViewLink, '_blank')}>
+            <button className="btn-primary" onClick={() => openInNewTab(viewData.webViewLink)}>
               Open in Google Drive
             </button>
           )}
@@ -257,7 +264,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           <div className="external-actions">
             <button 
               className="btn-primary" 
-              onClick={() => window.open(viewData.webViewLink, '_blank')}
+              onClick={() => openInNewTab(viewData.webViewLink)}
             >
               Open in Google Drive
             </button>

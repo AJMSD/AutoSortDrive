@@ -49,6 +49,7 @@ const CONFIG = {
   CONFIG_FILE_NAME: 'config.json',
   DEFAULT_PAGE_SIZE: 50,
   MAX_PAGE_SIZE: 100,
+  DEBUG: false,
 };
 
 // ============================================================================
@@ -137,7 +138,7 @@ function doGet(e) {
       .createTextOutput(JSON.stringify({
         success: false,
         error: error.message,
-        stack: error.stack,
+        ...(CONFIG.DEBUG ? { stack: error.stack } : {}),
       }))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -243,7 +244,7 @@ function doPost(e) {
       .createTextOutput(JSON.stringify({
         success: false,
         error: error.message,
-        stack: error.stack,
+        ...(CONFIG.DEBUG ? { stack: error.stack } : {}),
       }))
       .setMimeType(ContentService.MimeType.JSON);
   }

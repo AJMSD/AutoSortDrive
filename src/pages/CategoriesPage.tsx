@@ -47,6 +47,7 @@ const CategoriesPage: React.FC = () => {
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const lastSelectedIndexRef = useRef<number | null>(null);
   const lastAutoCreatedToastRef = useRef<{ key: string; at: number } | null>(null);
+  const lastRefreshAtRef = useRef<number>(0);
   const [animatedCounts, setAnimatedCounts] = useState<Map<string, number>>(new Map());
   const [formData, setFormData] = useState<CategoryFormData>({
     name: '',
@@ -266,13 +267,21 @@ const CategoriesPage: React.FC = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Bypass cache to get fresh file counts
+        const now = Date.now();
+        if (now - lastRefreshAtRef.current < 2 * 60 * 1000) {
+          return;
+        }
+        lastRefreshAtRef.current = now;
         loadCategories(true);
       }
     };
 
     const handleFocus = () => {
-      // Bypass cache to get fresh file counts
+      const now = Date.now();
+      if (now - lastRefreshAtRef.current < 2 * 60 * 1000) {
+        return;
+      }
+      lastRefreshAtRef.current = now;
       loadCategories(true);
     };
 

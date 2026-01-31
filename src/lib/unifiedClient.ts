@@ -314,6 +314,35 @@ const hashString = (value: string): number => {
   return hash;
 };
 
+const asyncPool = async <T, R>(
+  limit: number,
+  items: T[],
+  iterator: (item: T, index: number) => Promise<R>
+): Promise<R[]> => {
+  const results: R[] = new Array(items.length);
+  const executing: Promise<void>[] = [];
+
+  for (let index = 0; index < items.length; index += 1) {
+    const currentIndex = index;
+    const p = (async () => {
+      results[currentIndex] = await iterator(items[currentIndex], currentIndex);
+    })();
+    const wrapped = p.then(() => {
+      const execIndex = executing.indexOf(wrapped);
+      if (execIndex >= 0) {
+        executing.splice(execIndex, 1);
+      }
+    });
+    executing.push(wrapped);
+    if (executing.length >= limit) {
+      await Promise.race(executing);
+    }
+  }
+
+  await Promise.all(executing);
+  return results;
+};
+
 const pickFolderColor = (folderId: string) => {
   if (!folderId) return FOLDER_CATEGORY_COLORS[0];
   const index = Math.abs(hashString(folderId)) % FOLDER_CATEGORY_COLORS.length;
@@ -525,6 +554,8 @@ const getRuleMatchCategoryId = (file: any, rules: Rule[]): string | null => {
 class UnifiedClient {
   private lastFolderSyncAt: number = 0;
   private folderSyncPromise: Promise<{ config: AppConfig; createdCount: number }> | null = null;
+  private folderNonEmptyCache = new Map<string, { hasChildren: boolean; checkedAt: number }>();
+  private static readonly FOLDER_NON_EMPTY_TTL_MS = 30 * 60 * 1000;
 
   private async syncFolderCategories(
     accessToken: string,
@@ -588,18 +619,30 @@ class UnifiedClient {
         if (!folder?.id) continue;
         if (ignoredFolderIds.has(folder.id)) continue;
 
-        const childCheck = await driveClient.listFiles(accessToken, {
-          pageSize: 1,
-          q: `'${folder.id}' in parents and trashed = false`,
-          excludeFolders: false,
-        });
+        const cachedNonEmpty = this.folderNonEmptyCache.get(folder.id);
+        let hasChildren: boolean | null = null;
 
-        if (!childCheck.success) {
-          logger.warn('Failed to check folder contents, skipping folder category:', childCheck.error);
-          continue;
+        if (cachedNonEmpty && Date.now() - cachedNonEmpty.checkedAt < UnifiedClient.FOLDER_NON_EMPTY_TTL_MS) {
+          hasChildren = cachedNonEmpty.hasChildren;
         }
 
-        if ((childCheck.files || []).length === 0) {
+        if (hasChildren === null) {
+          const childCheck = await driveClient.listFiles(accessToken, {
+            pageSize: 1,
+            q: `'${folder.id}' in parents and trashed = false`,
+            excludeFolders: false,
+          });
+
+          if (!childCheck.success) {
+            logger.warn('Failed to check folder contents, skipping folder category:', childCheck.error);
+            continue;
+          }
+
+          hasChildren = (childCheck.files || []).length > 0;
+          this.folderNonEmptyCache.set(folder.id, { hasChildren, checkedAt: Date.now() });
+        }
+
+        if (!hasChildren) {
           continue;
         }
 
@@ -1512,49 +1555,77 @@ class UnifiedClient {
 
     // Start with stored review queue items (manually added, no rules matched)
     const enhancedQueue: any[] = [];
-    
-    // Add stored review items - fetch file metadata from Drive if needed
-    for (const item of storedReviewQueue) {
-      logger.debug('🔍 Processing stored review item:', item.id, item.fileId);
-      
-      // Skip if not pending
-      if (status && item.status !== status) {
-        logger.debug('  ⏭️ Skipping - status filter:', item.status, '!==', status);
-        continue;
-      }
-      
-      // Check if we have file metadata
-      let file = item.file;
+    const cachedFiles = cacheManager.getFilesCache();
+    const cachedFileMap = new Map<string, any>();
+    cachedFiles.forEach(file => cachedFileMap.set(file.id, file));
+    const storedItems = storedReviewQueue.filter(item => !status || item.status === status);
+    const missingFileIds = new Set<string>();
+
+    const normalizeCachedFile = (file: any) => ({
+      id: file.id,
+      name: file.name,
+      mimeType: file.mimeType,
+      modifiedTime:
+        file.modifiedTime ||
+        (file.modifiedDate instanceof Date ? file.modifiedDate.toISOString() : undefined),
+      iconLink: file.iconLink,
+      thumbnailLink: file.thumbnailLink,
+    });
+
+    storedItems.forEach(item => {
+      const file = item.file;
       const hasMetadata = file && file.name && file.name !== 'Unknown';
-      
-      if (!hasMetadata) {
-        logger.debug('  🔄 Fetching file metadata from Drive for:', item.fileId);
-        // Fetch file metadata from Drive
+      if (!hasMetadata && !cachedFileMap.has(item.fileId)) {
+        missingFileIds.add(item.fileId);
+      }
+    });
+
+    const fetchedFileMap = new Map<string, any>();
+    if (missingFileIds.size > 0) {
+      const ids = Array.from(missingFileIds);
+      const results = await asyncPool(4, ids, async (fileId) => {
         try {
-          const fileResult = await driveClient.getFile(accessToken, item.fileId);
+          const fileResult = await driveClient.getFile(accessToken, fileId);
           if (fileResult.success && fileResult.file) {
-            file = {
-              id: fileResult.file.id,
-              name: fileResult.file.name,
-              mimeType: fileResult.file.mimeType,
-              modifiedTime: fileResult.file.modifiedTime,
-              iconLink: fileResult.file.iconLink,
-              thumbnailLink: fileResult.file.thumbnailLink,
-            };
-            logger.debug('  ✅ Fetched file:', file.name);
-          } else {
-            logger.debug('  ⚠️ Could not fetch file, using fallback');
-            file = {
-              id: item.fileId,
-              name: item.fileName || 'Unknown',
-              mimeType: item.mimeType || '',
-              modifiedTime: item.modifiedTime || '',
-              iconLink: item.iconLink || '',
-              thumbnailLink: item.thumbnailLink || '',
+            return {
+              fileId,
+              file: {
+                id: fileResult.file.id,
+                name: fileResult.file.name,
+                mimeType: fileResult.file.mimeType,
+                modifiedTime: fileResult.file.modifiedTime,
+                iconLink: fileResult.file.iconLink,
+                thumbnailLink: fileResult.file.thumbnailLink,
+              },
             };
           }
         } catch (error) {
           logger.error('  ❌ Error fetching file:', error);
+        }
+        return { fileId, file: null };
+      });
+
+      results.forEach(result => {
+        if (result?.fileId && result.file) {
+          fetchedFileMap.set(result.fileId, result.file);
+        }
+      });
+    }
+
+    // Add stored review items - fetch file metadata from Drive if needed
+    for (const item of storedItems) {
+      logger.debug('🔍 Processing stored review item:', item.id, item.fileId);
+
+      let file = item.file;
+      const hasMetadata = file && file.name && file.name !== 'Unknown';
+
+      if (!hasMetadata) {
+        const cachedFile = cachedFileMap.get(item.fileId);
+        if (cachedFile) {
+          file = normalizeCachedFile(cachedFile);
+        } else if (fetchedFileMap.has(item.fileId)) {
+          file = fetchedFileMap.get(item.fileId);
+        } else {
           file = {
             id: item.fileId,
             name: item.fileName || 'Unknown',
@@ -1599,23 +1670,50 @@ class UnifiedClient {
     // If rules exist, also evaluate uncategorized files
     if (rules.length > 0) {
       logger.debug('🔍 getReviewQueue: Fetching files from Drive to evaluate rules...');
-      
-      // Get all files from Drive (limit to reasonable number)
-      const filesResult = await driveClient.listFiles(accessToken, {
-        pageSize: 100,
-        q: 'trashed = false',
-      });
 
-      if (filesResult.success) {
-        logger.debug('🔍 getReviewQueue: Got files from Drive:', filesResult.files.length);
-        
-          // Filter to uncategorized files only
-          const uncategorizedFiles = (filesResult.files || []).filter((file: any) => {
-            if (isExcludedMimeType(file?.mimeType)) return false;
-            if (assignments[file.id]) return false;
-            if (getFolderCategoryIdForFile(file, folderCategoryMap)) return false;
-            return true;
+      const filesForRules: any[] = [];
+      if (cachedFiles.length > 0) {
+        cachedFiles.forEach(file => {
+          const modifiedTime =
+            (file as any).modifiedTime ||
+            (file.modifiedDate instanceof Date ? file.modifiedDate.toISOString() : undefined);
+          filesForRules.push({
+            ...file,
+            modifiedTime,
           });
+        });
+      } else {
+        const MAX_PAGES = 20;
+        const PAGE_SIZE = 500;
+        let pageToken: string | null = null;
+        let pageCount = 0;
+
+        do {
+          const filesResult = await driveClient.listFiles(accessToken, {
+            pageSize: PAGE_SIZE,
+            pageToken: pageToken || undefined,
+            q: 'trashed = false',
+          });
+
+          if (!filesResult.success) {
+            break;
+          }
+
+          filesForRules.push(...(filesResult.files || []));
+          pageToken = filesResult.nextPageToken || null;
+          pageCount += 1;
+        } while (pageToken && pageCount < MAX_PAGES);
+      }
+
+      if (filesForRules.length > 0) {
+        logger.debug('🔍 getReviewQueue: Got files from Drive:', filesForRules.length);
+
+        const uncategorizedFiles = filesForRules.filter((file: any) => {
+          if (isExcludedMimeType(file?.mimeType)) return false;
+          if (assignments[file.id]) return false;
+          if (getFolderCategoryIdForFile(file, folderCategoryMap)) return false;
+          return true;
+        });
         logger.debug('🔍 getReviewQueue: Uncategorized files:', uncategorizedFiles.length);
 
         // Evaluate each uncategorized file against rules
@@ -2460,31 +2558,38 @@ class UnifiedClient {
     const assignedList: Array<{ fileId: string; fileName: string; categoryId: string }> = [];
     const noMatchList: Array<{ fileId: string; fileName: string; mimeType: string; modifiedTime: string }> = [];
     const errorsList: Array<{ fileId: string; error: string }> = [];
-    
-    for (const fileId of fileIds) {
+
+    const results = await asyncPool(4, fileIds, async (fileId) => {
       try {
         const result = await this.autoAssignOptimistic(accessToken, fileId);
-        
-        if (!result.success) {
-          errorsList.push({ fileId, error: result.error || 'Unknown error' });
-        } else if (result.assigned) {
-          assignedList.push({
-            fileId: result.fileId!,
-            fileName: result.fileName!,
-            categoryId: result.categoryId!,
-          });
-        } else {
-          noMatchList.push({
-            fileId: result.fileId!,
-            fileName: result.fileName!,
-            mimeType: result.mimeType || '',
-            modifiedTime: result.modifiedTime || '',
-          });
-        }
+        return { fileId, result };
       } catch (error: any) {
-        errorsList.push({ fileId, error: error.message || 'Unknown error' });
+        return { fileId, error: error.message || 'Unknown error' };
       }
-    }
+    });
+
+    results.forEach(({ fileId, result, error }) => {
+      if (error) {
+        errorsList.push({ fileId, error });
+        return;
+      }
+      if (!result?.success) {
+        errorsList.push({ fileId, error: result?.error || 'Unknown error' });
+      } else if (result.assigned) {
+        assignedList.push({
+          fileId: result.fileId!,
+          fileName: result.fileName!,
+          categoryId: result.categoryId!,
+        });
+      } else {
+        noMatchList.push({
+          fileId: result.fileId!,
+          fileName: result.fileName!,
+          mimeType: result.mimeType || '',
+          modifiedTime: result.modifiedTime || '',
+        });
+      }
+    });
 
     return {
       success: true,
@@ -2511,32 +2616,39 @@ class UnifiedClient {
     const assignedList: Array<{ fileId: string; fileName: string; categoryId: string }> = [];
     const noMatchList: Array<{ fileId: string; fileName: string; mimeType: string; modifiedTime: string }> = [];
     const errorsList: Array<{ fileId: string; error: string }> = [];
-    
-    for (const fileId of fileIds) {
+
+    const results = await asyncPool(4, fileIds, async (fileId) => {
       try {
         const result = await this.autoAssign(accessToken, fileId);
-        
-        if (!result.success) {
-          errorsList.push({ fileId, error: result.error || 'Unknown error' });
-        } else if (result.assigned) {
-          assignedList.push({
-            fileId: result.fileId!,
-            fileName: result.fileName!,
-            categoryId: result.categoryId!,
-          });
-        } else {
-          // TODO [CACHE-SYNC-2]: Include full file metadata for immediate UI updates
-          noMatchList.push({
-            fileId: result.fileId!,
-            fileName: result.fileName!,
-            mimeType: result.mimeType || '',
-            modifiedTime: result.modifiedTime || '',
-          });
-        }
+        return { fileId, result };
       } catch (error: any) {
-        errorsList.push({ fileId, error: error.message || 'Unknown error' });
+        return { fileId, error: error.message || 'Unknown error' };
       }
-    }
+    });
+
+    results.forEach(({ fileId, result, error }) => {
+      if (error) {
+        errorsList.push({ fileId, error });
+        return;
+      }
+      if (!result?.success) {
+        errorsList.push({ fileId, error: result?.error || 'Unknown error' });
+      } else if (result.assigned) {
+        assignedList.push({
+          fileId: result.fileId!,
+          fileName: result.fileName!,
+          categoryId: result.categoryId!,
+        });
+      } else {
+        // TODO [CACHE-SYNC-2]: Include full file metadata for immediate UI updates
+        noMatchList.push({
+          fileId: result.fileId!,
+          fileName: result.fileName!,
+          mimeType: result.mimeType || '',
+          modifiedTime: result.modifiedTime || '',
+        });
+      }
+    });
 
     return {
       success: true,

@@ -176,7 +176,7 @@ const AboutPage: React.FC = () => {
         <div className="resources-section">
           <h2 className="section-title">Resources</h2>
           <div className="resource-links">
-            <a href="https://github.com/AJMSD/AutoSortDrive#readme" target="_blank" rel="noopener noreferrer" className="resource-link">
+            <a href="https://github.com/AJMSD/AutoSortDrive/blob/main/README.md" target="_blank" rel="noopener noreferrer" className="resource-link">
               <span className="resource-icon"><i className="fa-solid fa-book"></i></span>
               <div className="resource-info">
                 <span className="resource-title">Documentation</span>

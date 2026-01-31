@@ -594,9 +594,6 @@ const CategoryViewPage: React.FC = () => {
                 {aiReasonConfidence !== null && (
                   <span className="ai-reason-confidence">Confidence: {aiReasonConfidence}%</span>
                 )}
-                {aiReasonMeta?.model && (
-                  <span className="ai-reason-model">Model: {aiReasonMeta.model}</span>
-                )}
               </div>
               <button
                 className="ai-reason-close"

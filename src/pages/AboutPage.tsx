@@ -176,7 +176,7 @@ const AboutPage: React.FC = () => {
         <div className="resources-section">
           <h2 className="section-title">Resources</h2>
           <div className="resource-links">
-            <a href="https://github.com/yourusername/autosortdrive" target="_blank" rel="noopener noreferrer" className="resource-link">
+            <a href="https://github.com/AJMSD/AutoSortDrive#readme" target="_blank" rel="noopener noreferrer" className="resource-link">
               <span className="resource-icon"><i className="fa-solid fa-book"></i></span>
               <div className="resource-info">
                 <span className="resource-title">Documentation</span>
@@ -184,7 +184,7 @@ const AboutPage: React.FC = () => {
               </div>
               <span className="external-icon"><i className="fa-solid fa-arrow-up-right-from-square"></i></span>
             </a>
-            <a href="https://github.com/yourusername/autosortdrive" target="_blank" rel="noopener noreferrer" className="resource-link">
+            <a href="https://github.com/AJMSD/AutoSortDrive" target="_blank" rel="noopener noreferrer" className="resource-link">
               <span className="resource-icon"><i className="fa-brands fa-github"></i></span>
               <div className="resource-info">
                 <span className="resource-title">GitHub Repository</span>
@@ -192,7 +192,7 @@ const AboutPage: React.FC = () => {
               </div>
               <span className="external-icon"><i className="fa-solid fa-arrow-up-right-from-square"></i></span>
             </a>
-            <a href="https://github.com/yourusername/autosortdrive/issues" target="_blank" rel="noopener noreferrer" className="resource-link">
+            <a href="https://github.com/AJMSD/AutoSortDrive/issues" target="_blank" rel="noopener noreferrer" className="resource-link">
               <span className="resource-icon"><i className="fa-solid fa-bug"></i></span>
               <div className="resource-info">
                 <span className="resource-title">Report Issues</span>

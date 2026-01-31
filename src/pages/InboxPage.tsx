@@ -351,7 +351,7 @@ const InboxPage: React.FC = () => {
         // Merge with existing files, preserving selections and categories
         setFiles(prevFiles => {
           const fileMap = new Map(prevFiles.map(f => [f.id, f]));
-          
+
           // Add new files and update existing ones
           newFiles.forEach(newFile => {
             const existing = fileMap.get(newFile.id);
@@ -368,8 +368,13 @@ const InboxPage: React.FC = () => {
               fileMap.set(newFile.id, newFile);
             }
           });
-          
-          return Array.from(fileMap.values());
+
+          const mergedFiles = Array.from(fileMap.values());
+          userCache.set(getCacheKey(), mergedFiles, { configVersion });
+          if (mergedFiles.length > 0) {
+            void prefetchDownloadMetadata(mergedFiles);
+          }
+          return mergedFiles;
         });
 
         // Fetch remaining pages if needed

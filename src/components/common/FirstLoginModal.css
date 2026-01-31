@@ -1,0 +1,207 @@
+.first-login-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 1.5rem;
+}
+
+.first-login-modal {
+  width: min(560px, 100%);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeIn 200ms ease-out;
+}
+
+.first-login-header {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.first-login-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: rgba(14, 165, 233, 0.12);
+  color: var(--color-accent-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.first-login-title-group h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--color-text-primary);
+}
+
+.first-login-subtitle {
+  margin-top: 0.35rem;
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
+}
+
+.first-login-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.first-login-decision h3 {
+  margin: 0 0 0.4rem 0;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+}
+
+.first-login-decision p {
+  margin: 0 0 0.75rem 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.decision-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.decision-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all var(--transition-base);
+}
+
+.decision-option input {
+  margin-top: 0.15rem;
+}
+
+.decision-option.selected {
+  border-color: var(--color-accent-primary);
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.decision-error {
+  margin-top: 0.5rem;
+  color: #dc2626;
+  font-size: 0.85rem;
+}
+
+.first-login-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-primary);
+}
+
+.first-login-list li {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.bullet-icon {
+  color: var(--color-accent-primary);
+  font-size: 0.95rem;
+  margin-top: 0.1rem;
+}
+
+
+
+.first-login-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.first-login-btn {
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.first-login-btn.primary {
+  background: var(--color-accent-primary);
+  color: white;
+}
+
+.first-login-btn.primary:hover {
+  background: var(--color-accent-primary-hover);
+  transform: translateY(-1px);
+}
+
+.first-login-btn.secondary {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.first-login-btn.secondary:hover {
+  background: var(--color-bg-hover);
+}
+
+body[data-theme='dark'] .first-login-modal {
+  background: var(--color-bg-primary-dark);
+  border-color: var(--color-border-dark);
+}
+
+body[data-theme='dark'] .first-login-title-group h2 {
+  color: var(--color-text-primary-dark);
+}
+
+body[data-theme='dark'] .first-login-subtitle,
+body[data-theme='dark'] .first-login-decision p,
+body[data-theme='dark'] 
+body[data-theme='dark'] .first-login-decision h3 {
+  color: var(--color-text-primary-dark);
+}
+
+body[data-theme='dark'] .decision-option {
+  background: var(--color-bg-secondary-dark);
+  border-color: var(--color-border-dark);
+  color: var(--color-text-primary-dark);
+}
+
+body[data-theme='dark'] .decision-option.selected {
+  border-color: var(--color-accent-bright);
+  background: rgba(56, 189, 248, 0.15);
+}
+
+body[data-theme='dark'] .first-login-btn.secondary {
+  background: var(--color-bg-secondary-dark);
+  border-color: var(--color-border-dark);
+  color: var(--color-text-primary-dark);
+}
+
+body[data-theme='dark'] .first-login-btn.secondary:hover {
+  background: var(--color-bg-hover-dark);
+}

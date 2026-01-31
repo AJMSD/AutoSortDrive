@@ -1,0 +1,213 @@
+.landing-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
+  padding: 1rem;
+}
+
+.landing-container {
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+}
+
+/* Header */
+.landing-header {
+  margin-bottom: 2rem;
+  animation: fadeInUp 300ms ease-out;
+}
+
+.landing-logo {
+  font-size: 4rem;
+  margin-bottom: 0.5rem;
+  animation: fadeIn 300ms ease-out;
+}
+
+.landing-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.5px;
+  animation: fadeIn 300ms ease-out 100ms backwards;
+}
+
+.landing-subtitle {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  animation: fadeIn 300ms ease-out 200ms backwards;
+}
+
+/* Features */
+.landing-features {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-bg-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  animation: bounceIn 300ms ease-out backwards;
+}
+
+.feature-item:nth-child(1) {
+  animation-delay: 300ms;
+}
+
+.feature-item:nth-child(2) {
+  animation-delay: 400ms;
+}
+
+.feature-item:nth-child(3) {
+  animation-delay: 500ms;
+}
+
+.feature-icon {
+  font-size: 1.25rem;
+  color: var(--color-accent-primary);
+}
+
+.feature-text {
+  font-weight: 500;
+}
+
+/* Sign In Button */
+.landing-action {
+  animation: fadeInUp 300ms ease-out 600ms backwards;
+}
+
+.google-signin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 100ms ease-out;
+  box-shadow: var(--shadow-sm);
+}
+
+.google-signin-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.google-signin-btn:active:not(:disabled) {
+  transform: scale(0.98);
+  transition: transform 50ms ease-out;
+}
+
+.google-signin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.landing-disclaimer {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* Loading Spinner */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark Mode */
+:root[data-theme='dark'] .landing-page {
+  background: linear-gradient(135deg, var(--color-bg-primary-dark) 0%, var(--color-bg-secondary-dark) 100%);
+}
+
+:root[data-theme='dark'] .landing-title {
+  color: var(--color-text-primary-dark);
+}
+
+:root[data-theme='dark'] .landing-subtitle,
+:root[data-theme='dark'] .landing-disclaimer {
+  color: var(--color-text-secondary-dark);
+}
+
+:root[data-theme='dark'] .feature-item {
+  background-color: var(--color-bg-secondary-dark);
+}
+
+:root[data-theme='dark'] .feature-text {
+  color: var(--color-text-primary-dark);
+}
+
+:root[data-theme='dark'] .google-signin-btn {
+  background-color: var(--color-bg-secondary-dark);
+  border-color: var(--color-border-dark);
+  color: var(--color-text-primary-dark);
+}

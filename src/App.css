@@ -1,0 +1,39 @@
+/* App Container */
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Ensure proper theme transitions */
+body {
+  transition: background-color 300ms ease-in-out, color 300ms ease-in-out;
+}
+
+/* Page Transitions */
+.page-transition {
+  animation: fadeInPage 150ms ease-out;
+}
+
+@keyframes fadeInPage {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Smooth page transitions */
+main {
+  animation: fadeIn 150ms ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

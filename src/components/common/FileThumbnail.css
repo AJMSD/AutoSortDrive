@@ -1,0 +1,75 @@
+.file-thumbnail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+.file-thumbnail-small {
+  width: 32px;
+  height: 32px;
+}
+
+.file-thumbnail-medium {
+  width: 48px;
+  height: 48px;
+}
+
+.file-thumbnail-large {
+  width: 64px;
+  height: 64px;
+}
+
+.file-thumbnail-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+
+.file-thumbnail-image.loaded {
+  opacity: 1;
+}
+
+.file-thumbnail-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
+  animation: fadeIn 200ms ease-out;
+}
+
+.file-thumbnail-emoji {
+  font-size: 1.25rem;
+  line-height: 1;
+  animation: fadeIn 200ms ease-out;
+}
+
+.file-thumbnail-medium .file-thumbnail-emoji {
+  font-size: 1.75rem;
+}
+
+.file-thumbnail-large .file-thumbnail-emoji {
+  font-size: 2.25rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

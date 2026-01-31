@@ -1,0 +1,58 @@
+/* Main Layout */
+.main-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--color-bg-primary);
+  transition: background-color 300ms ease-in-out;
+}
+
+body[data-theme='dark'] .main-content {
+  background-color: var(--color-bg-primary-dark);
+}
+
+.content-wrapper {
+  padding: 2rem;
+  max-width: 2000px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Responsive Padding */
+@media (max-width: 1024px) {
+  .content-wrapper {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .content-wrapper {
+    padding: 1rem;
+  }
+}
+
+/* Page Transitions */
+.main-content > * {
+  animation: fadeIn 300ms ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Scrollbar in Dark Mode */
+:root[data-theme='dark'] .main-content {
+  scrollbar-color: var(--color-border-dark) var(--color-bg-secondary-dark);
+}

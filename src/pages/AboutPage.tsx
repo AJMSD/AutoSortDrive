@@ -58,6 +58,120 @@ const AboutPage: React.FC = () => {
           </div>
         </div>
 
+        {/* How It Works */}
+        <div className="help-section">
+          <h2 className="section-title">How AutoSortDrive Works</h2>
+          <div className="info-grid">
+            <div className="info-card">
+              <h3 className="info-title">Inbox & Categories</h3>
+              <p className="info-text">
+                Inbox lists non-trashed files (excluding folders and shortcuts). Categories can be manual or linked to
+                a Drive folder. Folder-backed categories always reflect the folder contents.
+              </p>
+            </div>
+            <div className="info-card">
+              <h3 className="info-title">Review Queue</h3>
+              <p className="info-text">
+                The Review Queue combines stored items (manual or AI suggestions) with rule-based suggestions for
+                uncategorized files. Accepting or overriding clears the item and updates your assignments.
+              </p>
+            </div>
+            <div className="info-card">
+              <h3 className="info-title">Rules & AI</h3>
+              <p className="info-text">
+                Rules match on file name, mime type, or owner. AI suggestions can be enabled and used as primary or
+                fallback with a confidence threshold you control.
+              </p>
+            </div>
+            <div className="info-card">
+              <h3 className="info-title">Folder Auto-Categorize</h3>
+              <p className="info-text">
+                If you allow folder sync on first login, non-empty Drive folders become categories. The sync runs
+                periodically (about every 5 minutes).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Key Behaviors & Gotchas */}
+        <div className="help-section">
+          <h2 className="section-title">Key Behaviors & Gotchas</h2>
+          <ul className="help-list">
+            <li>
+              <strong>Folder-backed categories</strong> can’t remove files inside the Drive folder from within the app.
+              Move files in Drive to remove them from that category.
+            </li>
+            <li>
+              <strong>Review Queue sources:</strong> items can be created manually, by rules, or by AI. The source
+              impacts how they’re explained and cleared.
+            </li>
+            <li>
+              <strong>Caching:</strong> data is cached per tab using session storage. If data looks stale, refresh or
+              revisit the page to revalidate.
+            </li>
+            <li>
+              <strong>Rules order:</strong> if multiple rules match, the first match is used for suggestions.
+            </li>
+            <li>
+              <strong>AI vs rules:</strong> you can set AI as primary or fallback. Disabling AI clears AI suggestions
+              from the Review Queue.
+            </li>
+            <li>
+              <strong>Rule suggestions:</strong> the queue may be based on cached or paginated Drive results, so large
+              Drives can take longer to surface all matches.
+            </li>
+          </ul>
+        </div>
+
+        {/* Limits */}
+        <div className="help-section">
+          <h2 className="section-title">Limits & Performance Notes</h2>
+          <ul className="help-list">
+            <li>AI auto-assign processes up to 30 files per batch with a ~70s cooldown.</li>
+            <li>Bulk download is capped at 30 files per request; Google Workspace files are exported (PDF, DOCX, etc.).</li>
+            <li>Large Drives may require pagination; refresh if you suspect files are missing.</li>
+          </ul>
+        </div>
+
+        {/* Privacy & Security */}
+        <div className="help-section">
+          <h2 className="section-title">Privacy & Security</h2>
+          <div className="info-grid">
+            <div className="info-card">
+              <h3 className="info-title">OAuth & Tokens</h3>
+              <p className="info-text">
+                Tokens are stored in session storage and expire automatically. You’ll see a prompt to refresh your
+                session shortly before expiry (about 5 minutes).
+              </p>
+            </div>
+            <div className="info-card">
+              <h3 className="info-title">Config Storage</h3>
+              <p className="info-text">
+                Your configuration lives in your Drive appDataFolder as <code>autosortdrive-config.json</code> and is
+                not visible in the Drive UI.
+              </p>
+            </div>
+            <div className="info-card">
+              <h3 className="info-title">Scopes</h3>
+              <p className="info-text">
+                The app requires Google Drive scopes to list, read, and update files. If access is revoked, you’ll need
+                to sign in again.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Troubleshooting */}
+        <div className="help-section">
+          <h2 className="section-title">Troubleshooting</h2>
+          <ul className="help-list">
+            <li>“Nothing in category” — go to Inbox and refresh to warm the cache.</li>
+            <li>“No AI suggestions” — check AI settings and confidence threshold in Rules.</li>
+            <li>“Missing files” — Drive pagination may be in progress; refresh the page.</li>
+            <li>“Auth errors” — sign out and sign back in to refresh tokens.</li>
+          </ul>
+        </div>
+
         {/* Resources */}
         <div className="resources-section">
           <h2 className="section-title">Resources</h2>

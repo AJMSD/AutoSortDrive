@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { logger } from '@/utils/logger';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import FirstLoginModal from '@/components/common/FirstLoginModal';
@@ -56,7 +57,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     };
 
     loadOnboardingState().catch((error) => {
-      console.warn('Failed to load onboarding state:', error);
+      logger.warn('Failed to load onboarding state:', error);
     });
   }, []);
 
@@ -73,7 +74,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     try {
       await persistOnboardingDismissal(decision);
     } catch (error) {
-      console.warn('Failed to persist onboarding dismissal:', error);
+      logger.warn('Failed to persist onboarding dismissal:', error);
     }
   };
 
@@ -82,7 +83,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     try {
       await persistOnboardingDismissal(decision);
     } catch (error) {
-      console.warn('Failed to persist onboarding dismissal:', error);
+      logger.warn('Failed to persist onboarding dismissal:', error);
     }
     navigate('/about');
   };

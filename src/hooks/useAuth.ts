@@ -109,6 +109,7 @@ import { config } from '@/lib/config';
 import { unifiedClient } from '@/lib/unifiedClient';
 import { userCache } from '@/utils/userCache';
 import { authStorage } from '@/utils/authStorage';
+import { logger } from '@/utils/logger';
 
 interface User {
   name: string;
@@ -157,9 +158,9 @@ const validateOAuthConfig = (): { valid: boolean; errors: string[] } => {
 
   // Log current origin for authorized JavaScript origins verification
   const currentOrigin = window.location.origin;
-  console.log('🌐 Current Origin:', currentOrigin);
-  console.log('ℹ️ Make sure this origin is added to "Authorized JavaScript origins" in Google Cloud Console');
-  console.log('   Expected origins: http://localhost:5173, https://yourdomain.com');
+  logger.debug('🌐 Current Origin:', currentOrigin);
+  logger.debug('ℹ️ Make sure this origin is added to "Authorized JavaScript origins" in Google Cloud Console');
+  logger.debug('   Expected origins: http://localhost:5173, https://yourdomain.com');
 
   return { valid: errors.length === 0, errors };
 };
@@ -169,10 +170,10 @@ export const useAuth = (): AuthContextType => {
     const stored = authStorage.getStoredUser();
     if (stored) {
       if (stored.expiresAt && stored.expiresAt > Date.now()) {
-        console.log('✅ Restored user from session storage:', stored.email);
+        logger.debug('✅ Restored user from session storage:', stored.email);
         return stored as User;
       }
-      console.log('⏰ Stored token expired, clearing session storage');
+      logger.debug('⏰ Stored token expired, clearing session storage');
       authStorage.clearStoredUser();
     }
     return null;
@@ -182,33 +183,33 @@ export const useAuth = (): AuthContextType => {
   const refreshPromptShownRef = React.useRef(false);
 
   const login = useCallback(async () => {
-    console.log('🔐 Starting OAuth login flow...');
+    logger.debug('🔐 Starting OAuth login flow...');
     
     // Validate configuration before attempting OAuth
     const validation = validateOAuthConfig();
     if (!validation.valid) {
-      console.error('❌ OAuth Configuration Errors:');
-      validation.errors.forEach(err => console.error('  ', err));
+      logger.error('❌ OAuth Configuration Errors:');
+      validation.errors.forEach(err => logger.error('  ', err));
       alert('OAuth configuration error. Check console for details.');
       return;
     }
-    console.log('✅ OAuth configuration validated');
+    logger.debug('✅ OAuth configuration validated');
 
     setIsLoading(true);
     
     try {
       // Wait for Google API to load
       if (!window.google) {
-        console.warn('⏳ Google Identity Services library not loaded yet, waiting...');
+        logger.warn('⏳ Google Identity Services library not loaded yet, waiting...');
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
       if (!window.google) {
         const errorMsg = 'Google Identity Services library failed to load. Check if https://accounts.google.com/gsi/client is blocked.';
-        console.error('❌', errorMsg);
+        logger.error('❌', errorMsg);
         throw new Error(errorMsg);
       }
-      console.log('✅ Google Identity Services library loaded');
+      logger.debug('✅ Google Identity Services library loaded');
 
       // Define scopes for Drive API access
       const scopes = [
@@ -220,8 +221,8 @@ export const useAuth = (): AuthContextType => {
         'email',                                           // User email
       ].join(' ');
 
-      console.log('🔑 Initializing Token Client with scopes:', scopes);
-      console.log('🆔 Client ID:', config.google.clientId.substring(0, 20) + '...');
+      logger.debug('🔑 Initializing Token Client with scopes:', scopes);
+      logger.debug('🆔 Client ID:', config.google.clientId.substring(0, 20) + '...');
 
       // Use OAuth2 Token Client for Drive API access with POPUP mode
       // We're calling Drive API directly, so no CORS issues with Apps Script
@@ -230,11 +231,11 @@ export const useAuth = (): AuthContextType => {
         scope: scopes,
         // ux_mode: 'popup' is default - perfect for calling Google APIs directly
         callback: async (response: GoogleTokenResponse) => {
-          console.log('📨 OAuth callback received');
+          logger.debug('📨 OAuth callback received');
           
           // Check for errors in response
           if (response.error) {
-            console.error('❌ OAuth Error Response:', {
+            logger.error('❌ OAuth Error Response:', {
               error: response.error,
               description: response.error_description,
               fullResponse: response,
@@ -245,18 +246,18 @@ export const useAuth = (): AuthContextType => {
           }
 
           if (response.access_token) {
-            console.log('✅ Access token received');
+            logger.debug('✅ Access token received');
             const expiresInSeconds =
               typeof response.expires_in === 'number' && response.expires_in > 0
                 ? response.expires_in
                 : 3600;
-            console.log('   Token type:', response.token_type);
-            console.log('   Expires in:', expiresInSeconds, 'seconds');
-            console.log('   Granted scopes:', response.scope);
+            logger.debug('   Token type:', response.token_type);
+            logger.debug('   Expires in:', expiresInSeconds, 'seconds');
+            logger.debug('   Granted scopes:', response.scope);
             
             // Get user info from Google
             try {
-              console.log('👤 Fetching user info from Google...');
+              logger.debug('👤 Fetching user info from Google...');
               const userInfoResponse = await fetch(
                 'https://www.googleapis.com/oauth2/v2/userinfo',
                 {
@@ -271,7 +272,7 @@ export const useAuth = (): AuthContextType => {
               }
               
               const userInfo = await userInfoResponse.json();
-              console.log('✅ User info retrieved:', {
+              logger.debug('✅ User info retrieved:', {
                 email: userInfo.email,
                 name: userInfo.name,
                 hasProfilePicture: !!userInfo.picture,
@@ -288,10 +289,10 @@ export const useAuth = (): AuthContextType => {
               setUser(userData);
               authStorage.setStoredUser(userData);
               
-              console.log('✅ Authentication successful! User:', userInfo.email);
-              console.log('   Token expires at:', new Date(userData.expiresAt).toLocaleString());
+              logger.debug('✅ Authentication successful! User:', userInfo.email);
+              logger.debug('   Token expires at:', new Date(userData.expiresAt).toLocaleString());
             } catch (error: any) {
-              console.error('❌ Failed to fetch user info:', {
+              logger.error('❌ Failed to fetch user info:', {
                 error: error.message,
                 stack: error.stack,
                 response: error.response,
@@ -301,19 +302,19 @@ export const useAuth = (): AuthContextType => {
               setIsLoading(false);
             }
           } else {
-            console.error('❌ No access token in response:', response);
+            logger.error('❌ No access token in response:', response);
             setIsLoading(false);
           }
         },
         error_callback: (error: any) => {
           // Enhanced error logging for debugging OAuth failures
-          console.error('❌ OAuth Error Callback Triggered');
-          console.error('   Error object:', error);
-          console.error('   Error type:', typeof error);
+          logger.error('❌ OAuth Error Callback Triggered');
+          logger.error('   Error object:', error);
+          logger.error('   Error type:', typeof error);
           
           // Log all error properties
           if (error && typeof error === 'object') {
-            console.error('   Error details:', {
+            logger.error('   Error details:', {
               type: error.type,
               error: error.error,
               message: error.message,
@@ -335,25 +336,25 @@ export const useAuth = (): AuthContextType => {
 
             const errorType = error.type || error.error || 'unknown';
             const explanation = errorMessages[errorType] || '❌ Unknown OAuth error';
-            console.error('   Explanation:', explanation);
+            logger.error('   Explanation:', explanation);
             
             // Show user-friendly error
             alert(`OAuth Error: ${explanation}\n\nSee console for technical details.`);
           } else {
-            console.error('   Raw error:', error);
+            logger.error('   Raw error:', error);
           }
           
           setIsLoading(false);
         },
       });
 
-      console.log('🚀 Requesting access token (opening popup)...');
+      logger.debug('🚀 Requesting access token (opening popup)...');
       // Request access token (this will show the consent popup)
       client.requestAccessToken();
       // Popup mode works perfectly for calling Google APIs directly
       
     } catch (error: any) {
-      console.error('❌ Login failed:', {
+      logger.error('❌ Login failed:', {
         message: error.message,
         stack: error.stack,
         error,
@@ -364,26 +365,26 @@ export const useAuth = (): AuthContextType => {
   }, []);
 
   const logout = useCallback(() => {
-    console.log('🚪 Logging out user...');
+    logger.debug('🚪 Logging out user...');
     
     // Clear config cache
     unifiedClient.clearCache();
     
     // Clear all cached data (files, categories, etc.)
     userCache.clearAllCache();
-    console.log('🗑️ All caches cleared');
+    logger.debug('🗑️ All caches cleared');
     
     setUser(null);
     authStorage.clearStoredUser();
-    console.log('✅ User logged out successfully');
+    logger.debug('✅ User logged out successfully');
   }, []);
 
   // Refresh access token
   const refreshToken = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
-    console.log('Refreshing access token...');
+    logger.debug('Refreshing access token...');
     
     if (!window.google) {
-      console.error('Google Identity Services not available');
+      logger.error('Google Identity Services not available');
       return { success: false, error: 'Google Identity Services not available' };
     }
 
@@ -404,13 +405,13 @@ export const useAuth = (): AuthContextType => {
           hint: user?.email,
           callback: async (response: GoogleTokenResponse) => {
             if (response.error) {
-              console.error('Token refresh failed:', response.error);
+              logger.error('Token refresh failed:', response.error);
               resolve({ success: false, error: response.error_description || response.error });
               return;
             }
 
             if (response.access_token && user) {
-              console.log('Token refreshed successfully');
+              logger.debug('Token refreshed successfully');
               const expiresInSeconds =
                 typeof response.expires_in === 'number' && response.expires_in > 0
                   ? response.expires_in
@@ -424,7 +425,7 @@ export const useAuth = (): AuthContextType => {
               
               setUser(updatedUser);
               authStorage.setStoredUser(updatedUser);
-              console.log('   New token expires at:', new Date(updatedUser.expiresAt).toLocaleString());
+              logger.debug('   New token expires at:', new Date(updatedUser.expiresAt).toLocaleString());
               resolve({ success: true });
               return;
             }
@@ -432,7 +433,7 @@ export const useAuth = (): AuthContextType => {
             resolve({ success: false, error: 'No access token returned' });
           },
           error_callback: (error: any) => {
-            console.error('Token refresh error callback:', error);
+            logger.error('Token refresh error callback:', error);
             resolve({
               success: false,
               error: error?.message || error?.error || 'Token refresh failed',
@@ -445,7 +446,7 @@ export const useAuth = (): AuthContextType => {
 
       return refreshResult;
     } catch (error) {
-      console.error('Failed to refresh token:', error);
+      logger.error('Failed to refresh token:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to refresh token' };
     }
   }, [user]);
@@ -462,11 +463,11 @@ export const useAuth = (): AuthContextType => {
       const WARNING_TIME = 5 * 60 * 1000; // Warn 5 minutes before expiry
 
       if (timeUntilExpiry <= 0) {
-        console.warn('⏰ Access token expired, logging out');
+        logger.warn('⏰ Access token expired, logging out');
         logout();
       } else {
         const expiryMinutes = Math.floor(timeUntilExpiry / 60000);
-        console.log(`⏰ Token expires in ${expiryMinutes} minutes`);
+        logger.debug(`⏰ Token expires in ${expiryMinutes} minutes`);
 
         const showWarningToast = (minutesLeft: number) => {
           if (refreshPromptShownRef.current) {
@@ -544,7 +545,7 @@ export const useAuth = (): AuthContextType => {
 
         // Auto logout when token expires
         expiryTimeout = setTimeout(() => {
-          console.warn('⏰ Access token expired, logging out');
+          logger.warn('⏰ Access token expired, logging out');
           
           // Dismiss warning toast if still showing
           if (warningToastId) {

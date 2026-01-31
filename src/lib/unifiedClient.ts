@@ -17,6 +17,7 @@
  */
 
 import { driveClient } from './driveClient';
+import { logger } from '@/utils/logger';
 import { configManager, type AppConfig, type Category, type Rule, type AiSuggestionFeedback, type FeedbackSummary, type AiDecisionCacheEntry, type OnboardingState, type AssignmentMeta } from './configManager';
 import { cacheManager } from './cacheManager';
 import { withOptimisticUpdate } from './optimisticUpdate';
@@ -371,7 +372,7 @@ const callGemini = async (prompt: string) => {
 
     const text = typeof data?.text === 'string' ? data.text : '';
     if (!text.trim()) {
-      console.warn('AI response missing text');
+      logger.warn('AI response missing text');
       return null;
     }
     return text;
@@ -574,7 +575,7 @@ class UnifiedClient {
         });
 
         if (!result.success) {
-          console.warn('Failed to list folders for category sync:', result.error);
+          logger.warn('Failed to list folders for category sync:', result.error);
           break;
         }
 
@@ -594,7 +595,7 @@ class UnifiedClient {
         });
 
         if (!childCheck.success) {
-          console.warn('Failed to check folder contents, skipping folder category:', childCheck.error);
+          logger.warn('Failed to check folder contents, skipping folder category:', childCheck.error);
           continue;
         }
 
@@ -626,7 +627,7 @@ class UnifiedClient {
       if (didChange) {
         const updateResult = await configManager.updateConfig(accessToken, config);
         if (!updateResult.success) {
-          console.warn('Failed to persist folder categories:', updateResult.error);
+          logger.warn('Failed to persist folder categories:', updateResult.error);
         }
       }
 
@@ -657,7 +658,7 @@ class UnifiedClient {
         }
         const updateResult = await configManager.updateConfig(accessToken, config);
         if (!updateResult.success) {
-          console.warn('Failed to clear feedback summary:', updateResult.error);
+          logger.warn('Failed to clear feedback summary:', updateResult.error);
         }
       }
       return '';
@@ -676,7 +677,7 @@ class UnifiedClient {
       config.feedback.summary = summary;
       const updateResult = await configManager.updateConfig(accessToken, config);
       if (!updateResult.success) {
-        console.warn('Failed to persist feedback summary:', updateResult.error);
+        logger.warn('Failed to persist feedback summary:', updateResult.error);
       }
     }
 
@@ -697,7 +698,7 @@ class UnifiedClient {
       config.aiDecisionCacheContextKey = contextKey;
       const updateResult = await configManager.updateConfig(accessToken, config);
       if (!updateResult.success) {
-        console.warn('Failed to reset AI decision cache context:', updateResult.error);
+        logger.warn('Failed to reset AI decision cache context:', updateResult.error);
       }
     }
 
@@ -794,7 +795,7 @@ class UnifiedClient {
     try {
       const responseText = await callGemini(prompt);
       if (!responseText) {
-        console.warn('AI response empty or missing', { file: fileLabel });
+        logger.warn('AI response empty or missing', { file: fileLabel });
         return null;
       }
 
@@ -812,7 +813,7 @@ class UnifiedClient {
             reason?: string;
           };
         } catch (error) {
-          console.warn('AI response JSON parse failed:', { file: fileLabel, error });
+          logger.warn('AI response JSON parse failed:', { file: fileLabel, error });
         }
       }
 
@@ -831,7 +832,7 @@ class UnifiedClient {
       }
 
       if (!parsed) {
-        console.warn('AI response missing JSON payload', { file: fileLabel, responseText });
+        logger.warn('AI response missing JSON payload', { file: fileLabel, responseText });
         return null;
       }
 
@@ -860,7 +861,7 @@ class UnifiedClient {
       const reason = typeof parsed.reason === 'string' ? parsed.reason : 'AI suggestion';
 
       if (!categoryId) {
-        console.warn('AI response returned no suggestion', {
+        logger.warn('AI response returned no suggestion', {
           file: fileLabel,
           responseText,
           parsed,
@@ -872,7 +873,7 @@ class UnifiedClient {
 
       return { categoryId, confidence, reason };
     } catch (error) {
-      console.error('AI categorization failed:', { file: fileLabel, error });
+      logger.error('AI categorization failed:', { file: fileLabel, error });
       return null;
     }
   }
@@ -881,7 +882,7 @@ class UnifiedClient {
    * Call this once after login
    */
   async initialize(accessToken: string) {
-    console.log('🔧 Initializing user config...');
+    logger.debug('🔧 Initializing user config...');
     return await configManager.initialize(accessToken);
   }
 
@@ -925,15 +926,15 @@ class UnifiedClient {
     const assignmentMeta = effectiveConfig.assignmentMeta || {};
     
     const configVersion = effectiveConfig.updatedAt ? new Date(effectiveConfig.updatedAt).getTime() : Date.now();
-    console.log('� listFiles: Config loaded - rules:', rules.length, 'reviewQueue:', reviewQueue.length);
+    logger.debug('� listFiles: Config loaded - rules:', rules.length, 'reviewQueue:', reviewQueue.length);
     
-    console.log('� listFiles: Config loaded - rules:', rules.length, 'reviewQueue:', reviewQueue.length);
+    logger.debug('� listFiles: Config loaded - rules:', rules.length, 'reviewQueue:', reviewQueue.length);
     
     // Create a Set of file IDs in review queue for fast lookup
     const reviewFileIds = new Set(reviewQueue.map((item: any) => item.fileId));
     
     if (reviewFileIds.size > 0) {
-      console.log('📋 listFiles: Files in review queue:', Array.from(reviewFileIds));
+      logger.debug('📋 listFiles: Files in review queue:', Array.from(reviewFileIds));
     }
     
     const folderCategoryMap = new Map<string, Category>();
@@ -962,7 +963,7 @@ class UnifiedClient {
       const inReview = inStoredQueue || matchesRules;
       
       if (inReview) {
-        console.log('✅ listFiles: File marked inReview:', file.name, '(inQueue:', inStoredQueue, 'matchesRules:', matchesRules, ')');
+        logger.debug('✅ listFiles: File marked inReview:', file.name, '(inQueue:', inStoredQueue, 'matchesRules:', matchesRules, ')');
       }
       
         return {
@@ -1474,13 +1475,13 @@ class UnifiedClient {
    * Note: Apps Script backend call skipped due to CORS preflight limitations
    */
   async getReviewQueue(accessToken: string, status?: string) {
-    console.log('🔍 getReviewQueue: Starting...');
+    logger.debug('🔍 getReviewQueue: Starting...');
     
     // Load config to get rules, categories, assignments, and stored review queue
     const config = await configManager.getConfig(accessToken);
     
     if (!config) {
-      console.error('❌ getReviewQueue: Failed to load config');
+      logger.error('❌ getReviewQueue: Failed to load config');
       return {
         success: false,
         error: 'Failed to load config',
@@ -1502,7 +1503,7 @@ class UnifiedClient {
       }
     });
 
-    console.log('🔍 getReviewQueue: Config loaded', {
+    logger.debug('🔍 getReviewQueue: Config loaded', {
       rulesCount: rules.length,
       categoriesCount: categories.length,
       assignmentsCount: Object.keys(assignments).length,
@@ -1514,11 +1515,11 @@ class UnifiedClient {
     
     // Add stored review items - fetch file metadata from Drive if needed
     for (const item of storedReviewQueue) {
-      console.log('🔍 Processing stored review item:', item.id, item.fileId);
+      logger.debug('🔍 Processing stored review item:', item.id, item.fileId);
       
       // Skip if not pending
       if (status && item.status !== status) {
-        console.log('  ⏭️ Skipping - status filter:', item.status, '!==', status);
+        logger.debug('  ⏭️ Skipping - status filter:', item.status, '!==', status);
         continue;
       }
       
@@ -1527,7 +1528,7 @@ class UnifiedClient {
       const hasMetadata = file && file.name && file.name !== 'Unknown';
       
       if (!hasMetadata) {
-        console.log('  🔄 Fetching file metadata from Drive for:', item.fileId);
+        logger.debug('  🔄 Fetching file metadata from Drive for:', item.fileId);
         // Fetch file metadata from Drive
         try {
           const fileResult = await driveClient.getFile(accessToken, item.fileId);
@@ -1540,9 +1541,9 @@ class UnifiedClient {
               iconLink: fileResult.file.iconLink,
               thumbnailLink: fileResult.file.thumbnailLink,
             };
-            console.log('  ✅ Fetched file:', file.name);
+            logger.debug('  ✅ Fetched file:', file.name);
           } else {
-            console.log('  ⚠️ Could not fetch file, using fallback');
+            logger.debug('  ⚠️ Could not fetch file, using fallback');
             file = {
               id: item.fileId,
               name: item.fileName || 'Unknown',
@@ -1553,7 +1554,7 @@ class UnifiedClient {
             };
           }
         } catch (error) {
-          console.error('  ❌ Error fetching file:', error);
+          logger.error('  ❌ Error fetching file:', error);
           file = {
             id: item.fileId,
             name: item.fileName || 'Unknown',
@@ -1566,7 +1567,7 @@ class UnifiedClient {
       }
 
       if (isExcludedMimeType(file?.mimeType)) {
-        console.log('  ⏭️ Skipping excluded mime type for review queue:', file?.mimeType, file?.name);
+        logger.debug('  ⏭️ Skipping excluded mime type for review queue:', file?.mimeType, file?.name);
         continue;
       }
 
@@ -1590,14 +1591,14 @@ class UnifiedClient {
       });
       
       const fileName = file?.name || item.fileName || 'Unknown';
-      console.log('  ✅ Added to queue:', fileName);
+      logger.debug('  ✅ Added to queue:', fileName);
     }
 
-    console.log('🔍 getReviewQueue: After stored items:', enhancedQueue.length);
+    logger.debug('🔍 getReviewQueue: After stored items:', enhancedQueue.length);
 
     // If rules exist, also evaluate uncategorized files
     if (rules.length > 0) {
-      console.log('🔍 getReviewQueue: Fetching files from Drive to evaluate rules...');
+      logger.debug('🔍 getReviewQueue: Fetching files from Drive to evaluate rules...');
       
       // Get all files from Drive (limit to reasonable number)
       const filesResult = await driveClient.listFiles(accessToken, {
@@ -1606,7 +1607,7 @@ class UnifiedClient {
       });
 
       if (filesResult.success) {
-        console.log('🔍 getReviewQueue: Got files from Drive:', filesResult.files.length);
+        logger.debug('🔍 getReviewQueue: Got files from Drive:', filesResult.files.length);
         
           // Filter to uncategorized files only
           const uncategorizedFiles = (filesResult.files || []).filter((file: any) => {
@@ -1615,7 +1616,7 @@ class UnifiedClient {
             if (getFolderCategoryIdForFile(file, folderCategoryMap)) return false;
             return true;
           });
-        console.log('🔍 getReviewQueue: Uncategorized files:', uncategorizedFiles.length);
+        logger.debug('🔍 getReviewQueue: Uncategorized files:', uncategorizedFiles.length);
 
         // Evaluate each uncategorized file against rules
         uncategorizedFiles.forEach((file: any) => {
@@ -1676,16 +1677,16 @@ class UnifiedClient {
           }
         });
         
-        console.log('🔍 getReviewQueue: After rule evaluation:', enhancedQueue.length);
+        logger.debug('🔍 getReviewQueue: After rule evaluation:', enhancedQueue.length);
       }
     }
 
     // Sort by confidence (highest first)
     enhancedQueue.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
 
-    console.log('✅ getReviewQueue: Final queue:', enhancedQueue.length, 'items');
+    logger.debug('✅ getReviewQueue: Final queue:', enhancedQueue.length, 'items');
     if (enhancedQueue.length > 0) {
-      console.log('  First item:', enhancedQueue[0]);
+      logger.debug('  First item:', enhancedQueue[0]);
     }
 
     return {
@@ -2287,7 +2288,7 @@ class UnifiedClient {
           return await configManager.updateConfig(accessToken, config);
         },
         onSuccess: () => {
-          console.log(`? Successfully assigned ${file!.name} to category ${categoryId}`);
+          logger.debug(`? Successfully assigned ${file!.name} to category ${categoryId}`);
         },
         description: `Auto-assign file ${fileId} to category ${categoryId}`,
       }).then(() => ({
@@ -2343,7 +2344,7 @@ class UnifiedClient {
           return await configManager.updateConfig(accessToken, config);
         },
         onSuccess: () => {
-          console.log(`? Successfully added ${file!.name} to review queue`);
+          logger.debug(`? Successfully added ${file!.name} to review queue`);
           cacheManager.invalidateReviewQueueCache();
         },
         description: `Add file ${fileId} to review queue`,
@@ -2647,7 +2648,7 @@ class UnifiedClient {
         },
       };
     } catch (error: any) {
-      console.error('getFileViewUrl error:', error);
+      logger.error('getFileViewUrl error:', error);
       return {
         success: false,
         error: error.message || 'Failed to get file view URL',

@@ -12,6 +12,7 @@
  */
 
 import { driveClient } from './driveClient';
+import { logger } from '@/utils/logger';
 
 const parseTimestamp = (value?: string): number => {
   if (!value) return 0;
@@ -290,7 +291,7 @@ class ConfigManager {
    * Initialize or load config from user's Drive appDataFolder
    */
   async initialize(accessToken: string): Promise<{ success: boolean; config?: AppConfig; error?: string }> {
-    console.log('⚙️ Initializing config from Drive appDataFolder...');
+    logger.debug('⚙️ Initializing config from Drive appDataFolder...');
 
     try {
       // Search for existing config file in appDataFolder
@@ -311,7 +312,7 @@ class ConfigManager {
         const configFile = searchResult.files[0];
         this.configFileId = configFile.id;
 
-        console.log('✅ Found existing config file:', configFile.id);
+        logger.debug('✅ Found existing config file:', configFile.id);
 
         // Download and parse config
         const downloadResult = await driveClient.downloadAppDataFile(accessToken, configFile.id);
@@ -334,7 +335,7 @@ class ConfigManager {
         this.cachedConfig = config;
         this.cachedConfigVersion = parseTimestamp(config.updatedAt);
         this.cachedConfigAt = Date.now();
-        console.log('✅ Config loaded:', {
+        logger.debug('✅ Config loaded:', {
           categories: config.categories?.length || 0,
           assignments: Object.keys(config.assignments || {}).length,
           rules: config.rules?.length || 0,
@@ -343,7 +344,7 @@ class ConfigManager {
         if (didChange) {
           const updateResult = await this.updateConfig(accessToken, config);
           if (!updateResult.success) {
-            console.warn('Failed to persist config defaults:', updateResult.error);
+            logger.warn('Failed to persist config defaults:', updateResult.error);
           }
         }
 
@@ -354,7 +355,7 @@ class ConfigManager {
       }
 
       // No config file exists, create a new one
-      console.log('📝 Creating new config file in appDataFolder...');
+      logger.debug('📝 Creating new config file in appDataFolder...');
       const defaultConfig = this.getDefaultConfig();
       const createResult = await driveClient.createAppDataFile(
         accessToken,
@@ -374,7 +375,7 @@ class ConfigManager {
       this.cachedConfigVersion = parseTimestamp(defaultConfig.updatedAt);
       this.cachedConfigAt = Date.now();
 
-      console.log('✅ New config file created:', createResult.file.id);
+      logger.debug('✅ New config file created:', createResult.file.id);
 
       return {
         success: true,
@@ -382,7 +383,7 @@ class ConfigManager {
       };
 
     } catch (error: any) {
-      console.error('❌ Failed to initialize config:', error);
+      logger.error('❌ Failed to initialize config:', error);
       return {
         success: false,
         error: error.message,
@@ -418,7 +419,7 @@ class ConfigManager {
     }
 
     try {
-      console.log('💾 Saving config to Drive...');
+      logger.debug('💾 Saving config to Drive...');
       
       // Update timestamp
       config.updatedAt = new Date().toISOString();
@@ -434,13 +435,13 @@ class ConfigManager {
         this.cachedConfig = config;
         this.cachedConfigVersion = parseTimestamp(config.updatedAt);
         this.cachedConfigAt = Date.now();
-        console.log('✅ Config saved successfully');
+        logger.debug('✅ Config saved successfully');
       }
 
       return result;
 
     } catch (error: any) {
-      console.error('❌ Failed to update config:', error);
+      logger.error('❌ Failed to update config:', error);
       return {
         success: false,
         error: error.message,

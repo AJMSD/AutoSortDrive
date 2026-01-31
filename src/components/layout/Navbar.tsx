@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '@/utils/logger';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import ProfileDropdown from '@/components/common/ProfileDropdown';
@@ -12,13 +13,13 @@ const Navbar: React.FC = () => {
   // Debug logging
   React.useEffect(() => {
     if (user) {
-      console.log('👤 Navbar: User loaded', { 
+      logger.debug('👤 Navbar: User loaded', { 
         name: user.name, 
         email: user.email,
         hasPicture: !!user.picture 
       });
     } else {
-      console.log('👤 Navbar: No user');
+      logger.debug('👤 Navbar: No user');
     }
   }, [user]);
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { logger } from '@/utils/logger';
 import { userCache } from '@/utils/userCache';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -207,7 +208,7 @@ const CategoriesPage: React.FC = () => {
       if (cachedData) {
         setCategories(applyLocalFileCounts(cachedData));
         setIsLoading(false);
-        console.log('📦 Showing cached categories, fetching fresh data in background...');
+        logger.debug('📦 Showing cached categories, fetching fresh data in background...');
         
         // Fetch fresh data in background
         fetchFreshCategories();
@@ -234,7 +235,7 @@ const CategoriesPage: React.FC = () => {
         const withCounts = applyLocalFileCounts(response.categories);
         setCategories(withCounts);
         userCache.set('categories', withCounts, { configVersion }); // Update cache with fresh data
-        console.log('✅ Loaded fresh categories:', response.categories.length);
+        logger.debug('✅ Loaded fresh categories:', response.categories.length);
         if (response.autoCreatedCount && response.autoCreatedCount > 0) {
           const toastKey = `${response.autoCreatedCount}-${response.categories.length}`;
           const now = Date.now();
@@ -246,11 +247,11 @@ const CategoriesPage: React.FC = () => {
         }
       } else {
         toast.error('Failed to load categories');
-        console.error('❌ Failed to load categories:', response.error);
+        logger.error('❌ Failed to load categories:', response.error);
       }
     } catch (error: any) {
       toast.error('Error loading categories');
-      console.error('❌ Error loading categories:', error);
+      logger.error('❌ Error loading categories:', error);
     } finally {
       setIsLoading(false);
     }
@@ -361,7 +362,7 @@ const CategoriesPage: React.FC = () => {
           );
           const currentConfigVersion = userCache.getConfigVersion();
           userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
-          console.log('🔄 Updated category in cache');
+          logger.debug('🔄 Updated category in cache');
           
           toast.success(`Category "${formData.name}" updated successfully!`);
           setShowModal(false);
@@ -388,7 +389,7 @@ const CategoriesPage: React.FC = () => {
           // Update cache with new category
           const currentConfigVersion = userCache.getConfigVersion();
           userCache.set('categories', [...categories, newCategory], { configVersion: currentConfigVersion ?? undefined });
-          console.log('🔄 Added new category to cache');
+          logger.debug('🔄 Added new category to cache');
           
           toast.success(`Category "${formData.name}" created successfully!`);
           setShowModal(false);
@@ -398,7 +399,7 @@ const CategoriesPage: React.FC = () => {
       }
     } catch (error: any) {
       toast.error('Error saving category');
-      console.error('❌ Error saving category:', error);
+      logger.error('❌ Error saving category:', error);
     } finally {
       setIsSaving(false);
     }
@@ -428,7 +429,7 @@ const CategoriesPage: React.FC = () => {
           // Remove from cache
           const currentConfigVersion = userCache.getConfigVersion();
           userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
-          console.log('🔄 Removed category from cache');
+          logger.debug('🔄 Removed category from cache');
           
           setShowModal(false);
           setShowDeleteConfirmation(false);
@@ -448,7 +449,7 @@ const CategoriesPage: React.FC = () => {
     } catch (error: any) {
       setDeletingCategory(null);
       toast.error('Error deleting category');
-      console.error('❌ Error deleting category:', error);
+      logger.error('❌ Error deleting category:', error);
     }
   };
 

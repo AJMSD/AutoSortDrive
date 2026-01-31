@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { logger } from '@/utils/logger';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -12,7 +13,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      console.log('🔒 Protected route accessed without authentication, redirecting to landing page');
+      logger.debug('🔒 Protected route accessed without authentication, redirecting to landing page');
     }
   }, [isAuthenticated, isLoading]);
 

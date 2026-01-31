@@ -14,6 +14,7 @@
  */
 
 import { cacheManager } from './cacheManager';
+import { logger } from '@/utils/logger';
 import toast from 'react-hot-toast';
 
 // ============================================================================
@@ -90,16 +91,16 @@ export async function withOptimisticUpdate<TResult = any>(
   } = options;
 
   // 1. Create snapshot for rollback
-  console.log(`📸 ${description}: Creating snapshot...`);
+  logger.debug(`📸 ${description}: Creating snapshot...`);
   const snapshot = cacheManager.createSnapshot(snapshotKeys);
 
   try {
     // 2. Apply optimistic update immediately
-    console.log(`⚡ ${description}: Applying optimistic update...`);
+    logger.debug(`⚡ ${description}: Applying optimistic update...`);
     optimisticUpdate();
 
     // 3. Execute API call in background
-    console.log(`📡 ${description}: Executing API call...`);
+    logger.debug(`📡 ${description}: Executing API call...`);
     const result = await apiCall();
 
     // 4. Check if API call succeeded
@@ -112,16 +113,16 @@ export async function withOptimisticUpdate<TResult = any>(
 
     // 5. Success! Optionally reconcile with server response
     if (onSuccess) {
-      console.log(`✅ ${description}: Reconciling with server response...`);
+      logger.debug(`✅ ${description}: Reconciling with server response...`);
       onSuccess(result);
     }
 
-    console.log(`✅ ${description}: Completed successfully`);
+    logger.debug(`✅ ${description}: Completed successfully`);
     return result;
 
   } catch (error: any) {
     // 6. Failure - rollback to snapshot
-    console.error(`❌ ${description}: Failed, rolling back...`, error);
+    logger.error(`❌ ${description}: Failed, rolling back...`, error);
     cacheManager.restoreSnapshot(snapshot);
 
     // 7. Handle error
@@ -178,7 +179,7 @@ export async function withOptimisticUpdateBatch<TResult = any>(
 
   } catch (error: any) {
     // Rollback on any failure
-    console.error('❌ Batch operation failed, rolling back...', error);
+    logger.error('❌ Batch operation failed, rolling back...', error);
     cacheManager.restoreSnapshot(snapshot);
 
     toast.error(`Batch operation failed: ${error.message}`);

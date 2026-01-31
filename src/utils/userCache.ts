@@ -6,6 +6,7 @@
  */
 
 import { authStorage } from '@/utils/authStorage';
+import { logger } from '@/utils/logger';
 
 interface CacheEntry<T = any> {
   data: T;
@@ -32,7 +33,7 @@ class UserCache {
     try {
       return authStorage.getUserEmail();
     } catch (error) {
-      console.error('Failed to get current user ID:', error);
+      logger.error('Failed to get current user ID:', error);
       return null;
     }
   }
@@ -50,7 +51,7 @@ class UserCache {
   set<T>(key: string, data: T, options?: CacheOptions): boolean {
     const userId = this.getCurrentUserId();
     if (!userId) {
-      console.warn('⚠️ No user logged in, cannot cache data');
+      logger.warn('⚠️ No user logged in, cannot cache data');
       return false;
     }
 
@@ -64,10 +65,10 @@ class UserCache {
       };
 
       sessionStorage.setItem(cacheKey, JSON.stringify(entry));
-      console.log(`💾 Cached data for user: ${key} (${userId})${options?.configVersion ? ` [v${options.configVersion}]` : ''}`);
+      logger.debug(`💾 Cached data for user: ${key} (${userId})${options?.configVersion ? ` [v${options.configVersion}]` : ''}`);
       return true;
     } catch (error) {
-      console.error('Failed to set cache:', error);
+      logger.error('Failed to set cache:', error);
       return false;
     }
   }
@@ -78,7 +79,7 @@ class UserCache {
   get<T>(key: string, options?: CacheOptions): T | null {
     const userId = this.getCurrentUserId();
     if (!userId) {
-      console.warn('⚠️ No user logged in, cannot retrieve cache');
+      logger.warn('⚠️ No user logged in, cannot retrieve cache');
       return null;
     }
 
@@ -94,7 +95,7 @@ class UserCache {
 
       // Verify cache belongs to current user (safety check)
       if (entry.userId !== userId) {
-        console.warn('⚠️ Cache user mismatch, clearing stale cache');
+        logger.warn('⚠️ Cache user mismatch, clearing stale cache');
         sessionStorage.removeItem(cacheKey);
         return null;
       }
@@ -103,7 +104,7 @@ class UserCache {
       // If caller provides a configVersion, verify cached data matches
       if (options?.configVersion !== undefined && entry.configVersion !== undefined) {
         if (entry.configVersion !== options.configVersion) {
-          console.log(`🔄 Config version mismatch for ${key} (cached: v${entry.configVersion}, current: v${options.configVersion}), invalidating cache`);
+          logger.debug(`🔄 Config version mismatch for ${key} (cached: v${entry.configVersion}, current: v${options.configVersion}), invalidating cache`);
           sessionStorage.removeItem(cacheKey);
           return null;
         }
@@ -114,15 +115,15 @@ class UserCache {
       const age = Date.now() - entry.timestamp;
       
       if (age > ttl) {
-        console.log(`🕐 Cache expired for ${key} (${Math.round(age / 1000)}s old, ttl: ${ttl / 1000}s)`);
+        logger.debug(`🕐 Cache expired for ${key} (${Math.round(age / 1000)}s old, ttl: ${ttl / 1000}s)`);
         sessionStorage.removeItem(cacheKey);
         return null;
       }
 
-      console.log(`📦 Cache hit for ${key} (${Math.round(age / 1000)}s old)${entry.configVersion ? ` [v${entry.configVersion}]` : ''}`);
+      logger.debug(`📦 Cache hit for ${key} (${Math.round(age / 1000)}s old)${entry.configVersion ? ` [v${entry.configVersion}]` : ''}`);
       return entry.data;
     } catch (error) {
-      console.error('Failed to get cache:', error);
+      logger.error('Failed to get cache:', error);
       return null;
     }
   }
@@ -137,10 +138,10 @@ class UserCache {
     try {
       const cacheKey = this.getCacheKey(key, userId);
       sessionStorage.removeItem(cacheKey);
-      console.log(`🗑️ Removed cache: ${key}`);
+      logger.debug(`🗑️ Removed cache: ${key}`);
       return true;
     } catch (error) {
-      console.error('Failed to remove cache:', error);
+      logger.error('Failed to remove cache:', error);
       return false;
     }
   }
@@ -178,9 +179,9 @@ class UserCache {
       }
 
       keysToRemove.forEach(key => sessionStorage.removeItem(key));
-      console.log(`🗑️ Removed ${keysToRemove.length} cache entries for prefix: ${keyPrefix}`);
+      logger.debug(`🗑️ Removed ${keysToRemove.length} cache entries for prefix: ${keyPrefix}`);
     } catch (error) {
-      console.error('Failed to remove cache by prefix:', error);
+      logger.error('Failed to remove cache by prefix:', error);
     }
   }
 
@@ -205,9 +206,9 @@ class UserCache {
 
       // Remove them
       keysToRemove.forEach(key => sessionStorage.removeItem(key));
-      console.log(`🗑️ Cleared ${keysToRemove.length} cache entries for user: ${userId}`);
+      logger.debug(`🗑️ Cleared ${keysToRemove.length} cache entries for user: ${userId}`);
     } catch (error) {
-      console.error('Failed to clear user cache:', error);
+      logger.error('Failed to clear user cache:', error);
     }
   }
 
@@ -229,9 +230,9 @@ class UserCache {
 
       // Remove them
       keysToRemove.forEach(key => sessionStorage.removeItem(key));
-      console.log(`🗑️ Cleared ALL cache entries: ${keysToRemove.length} items`);
+      logger.debug(`🗑️ Cleared ALL cache entries: ${keysToRemove.length} items`);
     } catch (error) {
-      console.error('Failed to clear all cache:', error);
+      logger.error('Failed to clear all cache:', error);
     }
   }
 

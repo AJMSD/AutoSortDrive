@@ -12,6 +12,7 @@
  */
 
 import { userCache } from '@/utils/userCache';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -108,7 +109,7 @@ class CacheManager {
     const fileIndex = files.findIndex(f => f.id === fileId);
     
     if (fileIndex === -1) {
-      console.warn(`⚠️ File ${fileId} not found in cache`);
+      logger.warn(`⚠️ File ${fileId} not found in cache`);
       return null;
     }
 
@@ -116,7 +117,7 @@ class CacheManager {
     files[fileIndex] = updatedFile;
     
     this.setFilesCache(files);
-    console.log(`✅ Updated file in cache:`, fileId);
+    logger.debug(`✅ Updated file in cache:`, fileId);
     
     return updatedFile;
   }
@@ -135,12 +136,12 @@ class CacheManager {
         files[fileIndex] = updater(files[fileIndex]);
         updatedFiles.push(files[fileIndex]);
       } else {
-        console.warn(`⚠️ File ${fileId} not found in cache`);
+        logger.warn(`⚠️ File ${fileId} not found in cache`);
       }
     });
     
     this.setFilesCache(files);
-    console.log(`✅ Updated ${updatedFiles.length} files in cache`);
+    logger.debug(`✅ Updated ${updatedFiles.length} files in cache`);
     
     return updatedFiles;
   }
@@ -174,7 +175,7 @@ class CacheManager {
     }
     
     this.setReviewQueueCache(queue);
-    console.log(`✅ Added/updated item in review queue:`, item.fileId);
+    logger.debug(`✅ Added/updated item in review queue:`, item.fileId);
   }
 
   /**
@@ -185,7 +186,7 @@ class CacheManager {
     const filtered = queue.filter(item => item.fileId !== fileId);
     
     this.setReviewQueueCache(filtered);
-    console.log(`✅ Removed item from review queue:`, fileId);
+    logger.debug(`✅ Removed item from review queue:`, fileId);
   }
 
   /**
@@ -193,7 +194,7 @@ class CacheManager {
    */
   invalidateCategoryCache(categoryId: string): void {
     userCache.remove(CACHE_KEYS.categoryFiles(categoryId));
-    console.log(`🗑️ Invalidated category cache:`, categoryId);
+    logger.debug(`🗑️ Invalidated category cache:`, categoryId);
   }
 
   /**
@@ -201,7 +202,7 @@ class CacheManager {
    */
   invalidateReviewQueueCache(): void {
     userCache.remove(CACHE_KEYS.REVIEW_QUEUE);
-    console.log('Invalidated review queue cache');
+    logger.debug('Invalidated review queue cache');
   }
 
   /**
@@ -212,7 +213,7 @@ class CacheManager {
     // In the future, we could track which category caches exist
     userCache.remove('categories');
     userCache.removeByPrefix('category_files_');
-    console.log(`🗑️ Invalidated all category caches`);
+    logger.debug(`🗑️ Invalidated all category caches`);
   }
 
   /**
@@ -246,7 +247,7 @@ class CacheManager {
       });
     }
 
-    console.log('📸 Created cache snapshot:', {
+    logger.debug('📸 Created cache snapshot:', {
       files: snapshot.inbox_all_files?.length || 0,
       queue: snapshot.review_queue?.length || 0,
       categories: Object.keys(snapshot.category_caches || {}).length,
@@ -259,7 +260,7 @@ class CacheManager {
    * Restore cache state from a snapshot (rollback)
    */
   restoreSnapshot(snapshot: CacheSnapshot): void {
-    console.log('🔄 Restoring cache from snapshot...');
+    logger.debug('🔄 Restoring cache from snapshot...');
 
     if (snapshot.inbox_all_files) {
       this.setFilesCache(snapshot.inbox_all_files);
@@ -275,7 +276,7 @@ class CacheManager {
       });
     }
 
-    console.log('✅ Cache restored from snapshot');
+    logger.debug('✅ Cache restored from snapshot');
   }
 
   /**
@@ -285,7 +286,7 @@ class CacheManager {
   updateCategoryCount(categoryId: string, delta: number): void {
     const categories = userCache.get<any[]>(CACHE_KEYS.CATEGORIES);
     if (!categories || !Array.isArray(categories)) {
-      console.warn('⚠️ Categories cache not found');
+      logger.warn('⚠️ Categories cache not found');
       return;
     }
 
@@ -297,7 +298,7 @@ class CacheManager {
 
     const configVersion = this.getCurrentConfigVersion();
     userCache.set(CACHE_KEYS.CATEGORIES, updated, { configVersion });
-    console.log(`✅ Updated category count: ${categoryId} (${delta > 0 ? '+' : ''}${delta})`);
+    logger.debug(`✅ Updated category count: ${categoryId} (${delta > 0 ? '+' : ''}${delta})`);
   }
 
   /**
@@ -305,7 +306,7 @@ class CacheManager {
    */
   clearAll(): void {
     userCache.clearUserCache();
-    console.log('🗑️ Cleared all caches');
+    logger.debug('🗑️ Cleared all caches');
   }
 }
 

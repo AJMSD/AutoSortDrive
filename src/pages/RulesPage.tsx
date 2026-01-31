@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '@/utils/logger';
 import toast from 'react-hot-toast';
 import Tooltip from '@/components/common/Tooltip';
 import { appsScriptClient } from '@/lib/appsScriptClient';
@@ -77,7 +78,7 @@ const RulesPage: React.FC = () => {
         configVersion: cachedConfigVersion ?? undefined,
       });
       if (cachedCategories) {
-        console.log('📦 Loading categories from user cache');
+        logger.debug('📦 Loading categories from user cache');
         setCategories(cachedCategories);
         return;
       }
@@ -97,7 +98,7 @@ const RulesPage: React.FC = () => {
         toast.error('Failed to load categories');
       }
     } catch (error: any) {
-      console.error('Error loading categories:', error);
+      logger.error('Error loading categories:', error);
       toast.error('Failed to load categories: ' + error.message);
     }
   };
@@ -112,7 +113,7 @@ const RulesPage: React.FC = () => {
         toast.error('Failed to load rules');
       }
     } catch (error: any) {
-      console.error('Error loading rules:', error);
+      logger.error('Error loading rules:', error);
       toast.error('Failed to load rules: ' + error.message);
     } finally {
       setIsLoadingRules(false);
@@ -126,7 +127,7 @@ const RulesPage: React.FC = () => {
         setSettings({ ...defaultSettings, ...response.settings });
       }
     } catch (error: any) {
-      console.error('Error loading settings:', error);
+      logger.error('Error loading settings:', error);
     }
   };
 
@@ -158,7 +159,7 @@ const RulesPage: React.FC = () => {
         toast.error('Failed to delete rule: ' + response.error);
       }
     } catch (error: any) {
-      console.error('Error deleting rule:', error);
+      logger.error('Error deleting rule:', error);
       toast.error('Failed to delete rule: ' + error.message);
     }
   };
@@ -256,7 +257,7 @@ const RulesPage: React.FC = () => {
 
       handleCloseModal();
     } catch (error: any) {
-      console.error('Error saving rule:', error);
+      logger.error('Error saving rule:', error);
       toast.error('Failed to save rule: ' + error.message);
     } finally {
       setIsSavingRule(false);

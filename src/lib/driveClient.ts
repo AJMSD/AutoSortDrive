@@ -8,6 +8,7 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
+import { logger } from '@/utils/logger';
 
 class DriveClient {
   private baseUrl = 'https://www.googleapis.com/drive/v3';
@@ -21,11 +22,11 @@ class DriveClient {
     // Add response interceptor for debugging
     this.client.interceptors.response.use(
       (response) => {
-        console.log('📥 Drive API Response:', response.config.url, response.status);
+        logger.debug('📥 Drive API Response:', response.config.url, response.status);
         return response;
       },
       (error) => {
-        console.error('❌ Drive API Error:', error.message);
+        logger.error('❌ Drive API Error:', error.message);
         return Promise.reject(error);
       }
     );
@@ -53,7 +54,7 @@ class DriveClient {
     orderBy?: string;
     excludeFolders?: boolean;
   }) {
-    console.log('📁 Fetching files from Drive API...');
+    logger.debug('📁 Fetching files from Drive API...');
     
     const queryParams: any = {
       pageSize: params?.pageSize || 100, // Reduced from 1000 for better pagination control
@@ -94,7 +95,7 @@ class DriveClient {
         params: queryParams,
       });
 
-      console.log('✅ Files retrieved:', response.data.files?.length || 0, '| nextPageToken:', response.data.nextPageToken ? 'yes' : 'no');
+      logger.debug('✅ Files retrieved:', response.data.files?.length || 0, '| nextPageToken:', response.data.nextPageToken ? 'yes' : 'no');
       
       return {
         success: true,
@@ -102,7 +103,7 @@ class DriveClient {
         nextPageToken: response.data.nextPageToken || null,
       };
     } catch (error: any) {
-      console.error('❌ Failed to list files:', error.response?.data || error.message);
+      logger.error('❌ Failed to list files:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data?.error?.message || error.message,
@@ -129,7 +130,7 @@ class DriveClient {
         file: response.data,
       };
     } catch (error: any) {
-      console.error('❌ Failed to get file:', error.response?.data || error.message);
+      logger.error('❌ Failed to get file:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data?.error?.message || error.message,
@@ -199,7 +200,7 @@ class DriveClient {
         file: response.data,
       };
     } catch (error: any) {
-      console.error('❌ Failed to create file:', error.response?.data || error.message);
+      logger.error('❌ Failed to create file:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data?.error?.message || error.message,
@@ -228,7 +229,7 @@ class DriveClient {
         file: response.data,
       };
     } catch (error: any) {
-      console.error('❌ Failed to update file:', error.response?.data || error.message);
+      logger.error('❌ Failed to update file:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data?.error?.message || error.message,
@@ -251,7 +252,7 @@ class DriveClient {
         content: response.data,
       };
     } catch (error: any) {
-      console.error('❌ Failed to download file:', error.response?.data || error.message);
+      logger.error('❌ Failed to download file:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data?.error?.message || error.message,
@@ -282,7 +283,7 @@ class DriveClient {
         files: response.data.files || [],
       };
     } catch (error: any) {
-      console.error('❌ Failed to list appData files:', error.response?.data || error.message);
+      logger.error('❌ Failed to list appData files:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data?.error?.message || error.message,
@@ -304,7 +305,7 @@ class DriveClient {
 
       return await this.createFile(accessToken, metadata, content);
     } catch (error: any) {
-      console.error('❌ Failed to create appData file:', error);
+      logger.error('❌ Failed to create appData file:', error);
       return {
         success: false,
         error: error.message,
@@ -359,7 +360,7 @@ class DriveClient {
         file: response.data,
       };
     } catch (error: any) {
-      console.error('❌ Failed to update file parents:', error.response?.data || error.message);
+      logger.error('❌ Failed to update file parents:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data?.error?.message || error.message,
@@ -391,7 +392,7 @@ class DriveClient {
         file: response.data,
       };
     } catch (error: any) {
-      console.error('❌ Failed to trash file:', error.response?.data || error.message);
+      logger.error('❌ Failed to trash file:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data?.error?.message || error.message,

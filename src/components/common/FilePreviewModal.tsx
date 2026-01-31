@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '@/utils/logger';
 import { appsScriptClient } from '@/lib/appsScriptClient';
 import toast from 'react-hot-toast';
 import { authStorage } from '@/utils/authStorage';
@@ -85,7 +86,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         }
       }
     } catch (error: any) {
-      console.error('Error loading file data:', error);
+      logger.error('Error loading file data:', error);
       const errorMsg = 'Failed to load file data';
       setLoadError(errorMsg);
       toast.error(errorMsg);
@@ -109,7 +110,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
-        console.error('Fetch error:', response.status, errorText);
+        logger.error('Fetch error:', response.status, errorText);
         throw new Error(`Failed to fetch file content: ${response.status}`);
       }
 
@@ -122,7 +123,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         setBlobUrl(blobUrlCreated);
       }
     } catch (error: any) {
-      console.error('Error fetching file content:', error);
+      logger.error('Error fetching file content:', error);
       setLoadError(error.message || 'Failed to fetch file content');
     }
   };
@@ -173,7 +174,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 
       toast.success('File downloaded successfully');
     } catch (error: any) {
-      console.error('Download error:', error);
+      logger.error('Download error:', error);
       toast.error('Failed to download file');
     } finally {
       setIsDownloading(false);

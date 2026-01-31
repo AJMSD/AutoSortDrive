@@ -59,6 +59,9 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
  * Log configuration status (safe - no secrets)
  */
 export function logConfigStatus(): void {
+  if (!(config.features.debugMode || import.meta.env.DEV)) {
+    return;
+  }
   console.log('📋 Configuration Status:');
   console.log('  Google Client ID:', config.google.clientId ? '✅ Set' : '❌ Missing');
   console.log('  Google API Key:', config.google.apiKey ? '✅ Set' : '❌ Missing');

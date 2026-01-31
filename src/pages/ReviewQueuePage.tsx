@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { logger } from '@/utils/logger';
 import { useLocation } from 'react-router-dom';
 import { userCache } from '@/utils/userCache';
 import toast from 'react-hot-toast';
@@ -88,13 +89,13 @@ const ReviewQueuePage: React.FC = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('👁️ Review queue tab visible, refreshing...');
+        logger.debug('👁️ Review queue tab visible, refreshing...');
         loadData();
       }
     };
 
     const handleFocus = () => {
-      console.log('🎯 Review queue window focused, refreshing...');
+      logger.debug('🎯 Review queue window focused, refreshing...');
       loadData();
     };
 
@@ -132,7 +133,7 @@ const ReviewQueuePage: React.FC = () => {
             });
           }
 
-          console.log('???? Using cached review queue:', sanitizedQueue.length, 'items');
+          logger.debug('???? Using cached review queue:', sanitizedQueue.length, 'items');
           setReviewFiles(sanitizedQueue);
           
           // Animate confidence scores
@@ -171,7 +172,7 @@ const ReviewQueuePage: React.FC = () => {
       }
       
       // Cache miss or force refresh - load from API
-      console.log('🔄 Loading review queue from API...');
+      logger.debug('🔄 Loading review queue from API...');
       const cachedCategories = userCache.get<Category[]>('categories', {
         configVersion: cachedConfigVersion ?? undefined,
       });
@@ -208,13 +209,13 @@ const ReviewQueuePage: React.FC = () => {
           ttl: CACHE_TTL,
           configVersion: cachedConfigVersion ?? undefined,
         });
-        console.log('💾 Cached review queue:', queueItems.length, 'items');
+        logger.debug('💾 Cached review queue:', queueItems.length, 'items');
         
         // Debug logging
-        console.log('Review queue loaded - total items:', queueItems.length);
+        logger.debug('Review queue loaded - total items:', queueItems.length);
         if (queueItems.length > 0) {
-          console.log('First review item:', queueItems[0]);
-          console.log('First item file object:', queueItems[0].file);
+          logger.debug('First review item:', queueItems[0]);
+          logger.debug('First item file object:', queueItems[0].file);
         }
         
         // Animate confidence scores
@@ -229,7 +230,7 @@ const ReviewQueuePage: React.FC = () => {
         toast.error('Failed to load review queue');
       }
     } catch (error: any) {
-      console.error('Error loading data:', error);
+      logger.error('Error loading data:', error);
       toast.error('Failed to load data: ' + error.message);
     } finally {
       setIsLoading(false);
@@ -589,7 +590,7 @@ const ReviewQueuePage: React.FC = () => {
         });
       }
     } catch (error: any) {
-      console.error('Error skipping review:', error);
+      logger.error('Error skipping review:', error);
       setRejectingFiles(prev => {
         const next = new Set(prev);
         next.delete(file.id);
@@ -648,7 +649,7 @@ const ReviewQueuePage: React.FC = () => {
         });
       }
     } catch (error: any) {
-      console.error('Error assigning category:', error);
+      logger.error('Error assigning category:', error);
       setRemovingFiles(prev => {
         const next = new Set(prev);
         next.delete(file.id);

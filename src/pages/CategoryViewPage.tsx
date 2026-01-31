@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '@/utils/logger';
 import { userCache } from '@/utils/userCache';
 import { useParams, useNavigate } from 'react-router-dom';
 import { appsScriptClient } from '@/lib/appsScriptClient';
@@ -225,7 +226,7 @@ const CategoryViewPage: React.FC = () => {
         setFiles(categoryFiles);
         setIsLoading(false);
       } catch (error) {
-        console.error('Error loading category:', error);
+        logger.error('Error loading category:', error);
         toast.error('Error loading category');
         if (!isActive) return;
         setIsLoading(false);
@@ -267,7 +268,7 @@ const CategoryViewPage: React.FC = () => {
         toast.error('Failed to remove file from category');
       }
     } catch (error) {
-      console.error('Error removing file:', error);
+      logger.error('Error removing file:', error);
       toast.error('Error removing file from category');
     } finally {
       setIsRemoving(false);
@@ -317,7 +318,7 @@ const CategoryViewPage: React.FC = () => {
           );
           const currentConfigVersion = userCache.getConfigVersion();
           userCache.set(inboxCacheKey, updatedInboxFiles, { configVersion: currentConfigVersion ?? undefined });
-          console.log(`?? Updated inbox cache to remove category from ${removableFiles.length} files`);
+          logger.debug(`?? Updated inbox cache to remove category from ${removableFiles.length} files`);
         }
         
         // Update categories cache count instead of invalidating
@@ -330,7 +331,7 @@ const CategoryViewPage: React.FC = () => {
           );
           const currentConfigVersion = userCache.getConfigVersion();
           userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
-          console.log(`?? Updated category count in cache (-${removableFiles.length})`);
+          logger.debug(`?? Updated category count in cache (-${removableFiles.length})`);
         }
         
         toast.success(`Removed ${removableFiles.length} file${removableFiles.length > 1 ? 's' : ''} from category`);
@@ -341,7 +342,7 @@ const CategoryViewPage: React.FC = () => {
         toast.error('Failed to remove files from category');
       }
     } catch (error) {
-      console.error('Error removing files:', error);
+      logger.error('Error removing files:', error);
       toast.error('Error removing files from category');
     } finally {
       setIsRemoving(false);

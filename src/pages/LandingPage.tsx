@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { logger } from '@/utils/logger';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import './LandingPage.css';
@@ -11,12 +12,12 @@ const LandingPage: React.FC = () => {
   useEffect(() => {
     const checkGoogleAPI = () => {
       if (window.google) {
-        console.log('✅ Google Identity Services loaded successfully');
-        console.log('   Available APIs:', Object.keys(window.google.accounts));
+        logger.debug('✅ Google Identity Services loaded successfully');
+        logger.debug('   Available APIs:', Object.keys(window.google.accounts));
       } else {
-        console.warn('⚠️ Google Identity Services not yet loaded');
-        console.log('   Script should be loading from: https://accounts.google.com/gsi/client');
-        console.log('   Check browser DevTools Network tab for loading issues');
+        logger.warn('⚠️ Google Identity Services not yet loaded');
+        logger.debug('   Script should be loading from: https://accounts.google.com/gsi/client');
+        logger.debug('   Check browser DevTools Network tab for loading issues');
       }
     };
 
@@ -31,13 +32,13 @@ const LandingPage: React.FC = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('✅ User is authenticated, redirecting to /inbox');
+      logger.debug('✅ User is authenticated, redirecting to /inbox');
       navigate('/inbox');
     }
   }, [isAuthenticated, navigate]);
 
   const handleGoogleSignIn = async () => {
-    console.log('🖱️ Sign In button clicked');
+    logger.debug('🖱️ Sign In button clicked');
     await login();
     // After successful login, useEffect will redirect
   };

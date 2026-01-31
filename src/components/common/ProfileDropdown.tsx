@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { logger } from '@/utils/logger';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import './ProfileDropdown.css';
@@ -41,11 +42,11 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user }) => {
   // Log when picture URL changes and reset states
   useEffect(() => {
     if (user.picture) {
-      console.log('🖼️ ProfileDropdown: image load start –', user.picture);
+      logger.debug('🖼️ ProfileDropdown: image load start –', user.picture);
       setButtonImageSrc(user.picture);
       setDropdownImageSrc(user.picture);
     } else {
-      console.log('🖼️ ProfileDropdown: no picture URL, using fallback');
+      logger.debug('🖼️ ProfileDropdown: no picture URL, using fallback');
       setButtonImageSrc(null);
       setDropdownImageSrc(null);
     }
@@ -94,18 +95,18 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user }) => {
   };
 
   const handleButtonImageLoad = () => {
-    console.log('🖼️ ProfileDropdown (button): image loaded OK');
+    logger.debug('🖼️ ProfileDropdown (button): image loaded OK');
   };
 
   const handleButtonImageError = () => {
-    console.error('🖼️ ProfileDropdown (button): image error –', {
+    logger.error('🖼️ ProfileDropdown (button): image error –', {
       src: buttonImageSrc,
       retryCount: buttonRetryCount,
     });
 
     if (buttonRetryCount < MAX_RETRY_COUNT) {
       const nextRetry = buttonRetryCount + 1;
-      console.log(`🖼️ ProfileDropdown (button): retrying (attempt ${nextRetry}/${MAX_RETRY_COUNT})`);
+      logger.debug(`🖼️ ProfileDropdown (button): retrying (attempt ${nextRetry}/${MAX_RETRY_COUNT})`);
       setButtonRetryCount(nextRetry);
       // Trigger retry by briefly clearing and re-setting src
       setButtonImageSrc(null);
@@ -113,24 +114,24 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user }) => {
         setButtonImageSrc(user.picture || null);
       }, 100);
     } else {
-      console.error('🖼️ ProfileDropdown (button): giving up, using fallback');
+      logger.error('🖼️ ProfileDropdown (button): giving up, using fallback');
       setButtonImageError(true);
     }
   };
 
   const handleDropdownImageLoad = () => {
-    console.log('🖼️ ProfileDropdown (dropdown): image loaded OK');
+    logger.debug('🖼️ ProfileDropdown (dropdown): image loaded OK');
   };
 
   const handleDropdownImageError = () => {
-    console.error('🖼️ ProfileDropdown (dropdown): image error –', {
+    logger.error('🖼️ ProfileDropdown (dropdown): image error –', {
       src: dropdownImageSrc,
       retryCount: dropdownRetryCount,
     });
 
     if (dropdownRetryCount < MAX_RETRY_COUNT) {
       const nextRetry = dropdownRetryCount + 1;
-      console.log(`🖼️ ProfileDropdown (dropdown): retrying (attempt ${nextRetry}/${MAX_RETRY_COUNT})`);
+      logger.debug(`🖼️ ProfileDropdown (dropdown): retrying (attempt ${nextRetry}/${MAX_RETRY_COUNT})`);
       setDropdownRetryCount(nextRetry);
       // Trigger retry by briefly clearing and re-setting src
       setDropdownImageSrc(null);
@@ -138,7 +139,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user }) => {
         setDropdownImageSrc(user.picture || null);
       }, 100);
     } else {
-      console.error('🖼️ ProfileDropdown (dropdown): giving up, using fallback');
+      logger.error('🖼️ ProfileDropdown (dropdown): giving up, using fallback');
       setDropdownImageError(true);
     }
   };

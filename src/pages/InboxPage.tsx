@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { logger } from '@/utils/logger';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { appsScriptClient } from '@/lib/appsScriptClient';
 import { userCache } from '@/utils/userCache';
@@ -123,11 +124,11 @@ const InboxPage: React.FC = () => {
       const sanitizedCache = cachedFiles.filter(file => !isExcludedMimeType(file.mimeType));
       if (sanitizedCache.length !== cachedFiles.length) {
         userCache.set(cacheKey, sanitizedCache, { configVersion: cachedConfigVersion ?? undefined });
-        console.log('Removed folders/shortcuts from cached inbox files');
+        logger.debug('Removed folders/shortcuts from cached inbox files');
       }
 
       if (sanitizedCache.length > 0) {
-        console.log('???? Loading files from user cache:', sanitizedCache.length);
+        logger.debug('???? Loading files from user cache:', sanitizedCache.length);
         setFiles(sanitizedCache);
         setShouldAnimate(false);
         setIsLoading(false);
@@ -158,7 +159,7 @@ const InboxPage: React.FC = () => {
       }
       
       // DEBUG: Check if backend is returning inReview flag
-      console.log('🔍 DEBUG: First response from backend:', {
+      logger.debug('🔍 DEBUG: First response from backend:', {
         success: firstResponse.success,
         fileCount: firstResponse.files?.length,
         sampleFile: firstResponse.files?.[0],
@@ -190,7 +191,7 @@ const InboxPage: React.FC = () => {
 
         // DEBUG: Check mapped files for inReview status
         const inReviewCount = mappedFiles.filter(f => f.inReview).length;
-        console.log('🔍 DEBUG: Mapped files:', {
+        logger.debug('🔍 DEBUG: Mapped files:', {
           total: mappedFiles.length,
           inReviewCount,
           sampleMapped: mappedFiles[0],
@@ -201,7 +202,7 @@ const InboxPage: React.FC = () => {
         setFiles(mappedFiles);
         setShouldAnimate(true);
         setIsLoading(false);
-        console.log('✅ First batch loaded:', { fileCount: mappedFiles.length, hasMore: !!firstResponse.nextPageToken });
+        logger.debug('✅ First batch loaded:', { fileCount: mappedFiles.length, hasMore: !!firstResponse.nextPageToken });
         
         // Fetch remaining pages in background if there are more
         if (firstResponse.nextPageToken) {
@@ -212,7 +213,7 @@ const InboxPage: React.FC = () => {
         } else {
           // No more pages - cache the files now
           userCache.set(cacheKey, mappedFiles, { configVersion });
-          console.log('💾 Cached all files:', mappedFiles.length);
+          logger.debug('💾 Cached all files:', mappedFiles.length);
           void prefetchDownloadMetadata(mappedFiles);
         }
       } else {
@@ -220,7 +221,7 @@ const InboxPage: React.FC = () => {
         setIsLoading(false);
       }
     } catch (error: any) {
-      console.error('Error fetching files:', error);
+      logger.error('Error fetching files:', error);
       toast.error('Failed to load files from Drive');
       setIsLoading(false);
     }
@@ -230,7 +231,7 @@ const InboxPage: React.FC = () => {
   const fetchRemainingPages = async (baseParams: any, initialToken: string, existingFiles: FileItem[], configVersion?: number) => {
     // Prevent duplicate fetches
     if (isFetchingRemaining) {
-      console.log('⏸️ Already fetching remaining pages, skipping');
+      logger.debug('⏸️ Already fetching remaining pages, skipping');
       return;
     }
 
@@ -243,7 +244,7 @@ const InboxPage: React.FC = () => {
     try {
       while (pageToken && pageCount < MAX_PAGES) {
         pageCount++;
-        console.log(`📄 Fetching page ${pageCount}/${MAX_PAGES}...`);
+        logger.debug(`📄 Fetching page ${pageCount}/${MAX_PAGES}...`);
         const currentParams = { ...baseParams, cursor: pageToken };
         const response = await appsScriptClient.listFiles(currentParams);
         
@@ -294,7 +295,7 @@ const InboxPage: React.FC = () => {
             return Array.from(fileMap.values());
           });
           
-          console.log('✅ Loaded files:', { totalCount: allFiles.length, hasMore: !!response.nextPageToken });
+          logger.debug('✅ Loaded files:', { totalCount: allFiles.length, hasMore: !!response.nextPageToken });
           
           pageToken = response.nextPageToken || null;
           
@@ -303,20 +304,20 @@ const InboxPage: React.FC = () => {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
         } else {
-          console.log('❌ Failed to fetch page, stopping');
+          logger.debug('❌ Failed to fetch page, stopping');
           break;
         }
       }
       
       if (pageCount >= MAX_PAGES) {
-        console.warn('⚠️ Reached maximum page limit, stopping fetch');
+        logger.warn('⚠️ Reached maximum page limit, stopping fetch');
       }
     } catch (error) {
-      console.error('Error fetching remaining pages:', error);
+      logger.error('Error fetching remaining pages:', error);
     } finally {
       setIsLoadingMore(false);
       setIsFetchingRemaining(false);
-      console.log('✅ All files loaded:', { totalCount: allFiles.length, pages: pageCount });
+      logger.debug('✅ All files loaded:', { totalCount: allFiles.length, pages: pageCount });
       
       // TODO [CACHE-SYNC-4]: Cache with config version for staleness detection
       const cacheKey = getCacheKey();
@@ -404,7 +405,7 @@ const InboxPage: React.FC = () => {
         toast.success('Files refreshed successfully');
       }
     } catch (error) {
-      console.error('Error refreshing files:', error);
+      logger.error('Error refreshing files:', error);
       toast.error('Failed to refresh files');
     } finally {
       setIsRefreshing(false);
@@ -413,7 +414,7 @@ const InboxPage: React.FC = () => {
 
   // TODO [CACHE-SYNC-1]: Fetch files on mount only - filters are applied client-side
   useEffect(() => {
-    console.log('🔍 Component mounted, fetching files from API');
+    logger.debug('🔍 Component mounted, fetching files from API');
     fetchFiles();
   }, []); // Empty dependency array - only runs once on mount
 
@@ -431,10 +432,10 @@ const InboxPage: React.FC = () => {
     
     // If cache is missing (was invalidated by another page), fetch fresh data
     if (!cachedFiles || cachedFiles.length === 0) {
-      console.log('📭 Cache invalidated, fetching fresh data on navigation...');
+      logger.debug('📭 Cache invalidated, fetching fresh data on navigation...');
       fetchFiles();
     } else {
-      console.log('📦 Using cached data on navigation, no fetch needed');
+      logger.debug('📦 Using cached data on navigation, no fetch needed');
     }
   }, [location.pathname]); // Run when navigating to this route
 
@@ -444,13 +445,13 @@ const InboxPage: React.FC = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('👁️ Tab visible again, refreshing files...');
+        logger.debug('👁️ Tab visible again, refreshing files...');
         fetchFiles();
       }
     };
 
     const handleFocus = () => {
-      console.log('🎯 Window focused, refreshing files...');
+      logger.debug('🎯 Window focused, refreshing files...');
       fetchFiles();
     };
 
@@ -490,7 +491,7 @@ const InboxPage: React.FC = () => {
           { configVersion: cachedConfigVersion ?? undefined }
         );
         if (cachedCategories) {
-          console.log('📦 Loading categories from user cache');
+          logger.debug('📦 Loading categories from user cache');
           setCategories(cachedCategories);
           return;
         }
@@ -510,10 +511,10 @@ const InboxPage: React.FC = () => {
         }));
         setCategories(cats);
         userCache.set('categories', cats, { configVersion });
-        console.log('✅ Loaded categories for inbox:', response.categories.length);
+        logger.debug('✅ Loaded categories for inbox:', response.categories.length);
       }
     } catch (error) {
-      console.error('❌ Failed to load categories:', error);
+      logger.error('❌ Failed to load categories:', error);
     }
   };
 
@@ -661,7 +662,7 @@ const InboxPage: React.FC = () => {
         });
 
         // Use batch auto-assign endpoint with optimistic updates
-        console.log(`🤖 Auto-assigning ${selectedFiles.length} files using rules...`);
+        logger.debug(`🤖 Auto-assigning ${selectedFiles.length} files using rules...`);
         
         const response = await appsScriptClient.batchAutoAssign(selectedFiles.map(f => f.id));
         
@@ -683,7 +684,7 @@ const InboxPage: React.FC = () => {
           // Clear selections on updated files
           const updatedFiles = cachedFiles.map(f => ({ ...f, selected: false }));
           setFiles(updatedFiles);
-          console.log('✅ Reloaded files from cache after auto-assign');
+          logger.debug('✅ Reloaded files from cache after auto-assign');
         } else {
           // Fallback: just clear selections
           const updatedFiles = files.map(f => ({ ...f, selected: false }));
@@ -775,7 +776,7 @@ const InboxPage: React.FC = () => {
           chunks.push(assignments.slice(i, i + CHUNK_SIZE));
         }
         
-        console.log(`📦 Processing ${assignments.length} files in ${chunks.length} chunks (${CHUNK_SIZE} per chunk, max ${MAX_PARALLEL} parallel)`);
+        logger.debug(`📦 Processing ${assignments.length} files in ${chunks.length} chunks (${CHUNK_SIZE} per chunk, max ${MAX_PARALLEL} parallel)`);
         
         // Process chunks in batches of MAX_PARALLEL
         for (let i = 0; i < chunks.length; i += MAX_PARALLEL) {
@@ -790,7 +791,7 @@ const InboxPage: React.FC = () => {
           }
         }
         
-        console.log(`✅ Successfully processed all ${chunks.length} chunks`);
+        logger.debug(`✅ Successfully processed all ${chunks.length} chunks`);
       }
       
       // Update UI only after successful API call(s)
@@ -807,7 +808,7 @@ const InboxPage: React.FC = () => {
       
       // Invalidate category file cache to force reload with fresh data
       userCache.remove(`category_files_${categoryId}`);
-      console.log(`🗑️ Invalidated category cache for ${categoryId}`);
+      logger.debug(`🗑️ Invalidated category cache for ${categoryId}`);
       
       // Reload categories bypassing cache to update counts immediately
       loadCategories(true);
@@ -836,13 +837,13 @@ const InboxPage: React.FC = () => {
                 : cat
           );
           userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
-          console.log(`🔄 Updated category count in cache (+${incomingCount})`);
+          logger.debug(`🔄 Updated category count in cache (+${incomingCount})`);
         }
       } catch (e) {
-        console.error('Failed to update categories cache:', e);
+        logger.error('Failed to update categories cache:', e);
       }
     } catch (error: any) {
-      console.error('Error assigning category:', error);
+      logger.error('Error assigning category:', error);
       toast.error('Failed to assign category: ' + error.message);
     } finally {
       setIsAssigning(false);
@@ -862,7 +863,7 @@ const InboxPage: React.FC = () => {
 
     // DEBUG: Log files before filtering
     const beforeFilterInReview = result.filter(f => f.inReview).length;
-    console.log('🔍 DEBUG: Files before filtering:', {
+    logger.debug('🔍 DEBUG: Files before filtering:', {
       totalFiles: result.length,
       inReviewFiles: beforeFilterInReview,
       sampleFile: result[0],
@@ -943,7 +944,7 @@ const InboxPage: React.FC = () => {
   
   // Debug pagination
   useEffect(() => {
-    console.log('📊 Pagination Debug:', {
+    logger.debug('📊 Pagination Debug:', {
       totalFiles: files.length,
       filteredFiles: filteredFiles.length,
       itemsPerPage,
@@ -1211,7 +1212,7 @@ const InboxPage: React.FC = () => {
           paginatedFiles.map((file, index) => {
             // DEBUG: Log each file being rendered
             if (index === 0 || file.inReview) {
-              console.log('🔍 DEBUG: Rendering file:', {
+              logger.debug('🔍 DEBUG: Rendering file:', {
                 index,
                 id: file.id,
                 name: file.name,
@@ -1467,5 +1468,4 @@ const InboxPage: React.FC = () => {
 };
 
 export default InboxPage;
-
 

@@ -1,4 +1,5 @@
 import { unifiedClient } from '@/lib/unifiedClient';
+import { logger } from '@/utils/logger';
 import { authStorage } from '@/utils/authStorage';
 
 /**
@@ -22,7 +23,7 @@ class AppsScriptClient {
     try {
       return authStorage.getAccessToken();
     } catch (error) {
-      console.error('Failed to get access token:', error);
+      logger.error('Failed to get access token:', error);
       return null;
     }
   }

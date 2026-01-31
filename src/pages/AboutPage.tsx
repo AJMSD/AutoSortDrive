@@ -165,10 +165,10 @@ const AboutPage: React.FC = () => {
         <div className="help-section">
           <h2 className="section-title">Troubleshooting</h2>
           <ul className="help-list">
-            <li>“Nothing in category” — go to Inbox and refresh to warm the cache.</li>
-            <li>“No AI suggestions” — check AI settings and confidence threshold in Rules.</li>
-            <li>“Missing files” — Drive pagination may be in progress; refresh the page.</li>
-            <li>“Auth errors” — sign out and sign back in to refresh tokens.</li>
+            <li>“Nothing in category” - go to Inbox and refresh to warm the cache.</li>
+            <li>“No AI suggestions” - check AI settings and confidence threshold in Rules.</li>
+            <li>“Missing files” - Drive pagination may be in progress; refresh the page.</li>
+            <li>“Auth errors” - sign out and sign back in to refresh tokens.</li>
           </ul>
         </div>
 

@@ -200,14 +200,6 @@ const AboutPage: React.FC = () => {
               </div>
               <span className="external-icon"><i className="fa-solid fa-arrow-up-right-from-square"></i></span>
             </a>
-            <a href="mailto:support@autosortdrive.com" className="resource-link">
-              <span className="resource-icon"><i className="fa-solid fa-envelope"></i></span>
-              <div className="resource-info">
-                <span className="resource-title">Contact Support</span>
-                <span className="resource-description">Get help</span>
-              </div>
-              <span className="external-icon"><i className="fa-solid fa-arrow-up-right-from-square"></i></span>
-            </a>
           </div>
         </div>
 
@@ -217,13 +209,6 @@ const AboutPage: React.FC = () => {
             AutoSortDrive is an independent project and is not affiliated with Google LLC.
             Google Drive is a trademark of Google LLC.
           </p>
-          <div className="legal-links">
-            <a href="#" className="legal-link">Privacy Policy</a>
-            <span className="legal-separator">•</span>
-            <a href="#" className="legal-link">Terms of Service</a>
-            <span className="legal-separator">•</span>
-            <a href="#" className="legal-link">License</a>
-          </div>
         </div>
       </div>
     </div>

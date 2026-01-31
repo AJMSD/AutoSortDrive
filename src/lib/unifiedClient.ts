@@ -480,8 +480,11 @@ function evaluateFileAgainstRules(file: any, rules: Rule[]): boolean {
  */
 function getFileFieldValue(file: any, field: string): any {
   switch (field) {
+    case 'filename':
+    case 'keyword':
     case 'name':
       return file.name;
+    case 'mimetype':
     case 'mimeType':
       return file.mimeType;
     case 'modifiedTime':
@@ -490,6 +493,8 @@ function getFileFieldValue(file: any, field: string): any {
       return file.createdTime;
     case 'size':
       return file.size;
+    case 'owner':
+      return file.owners?.[0]?.emailAddress || '';
     default:
       return null;
   }

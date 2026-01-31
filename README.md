@@ -157,5 +157,3 @@ npm run dev
 - react-hot-toast, axios, jszip
 - Font Awesome (icons)
 
-## License
-See `LICENSE`.

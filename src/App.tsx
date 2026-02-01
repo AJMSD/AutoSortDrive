@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'r
 import { Toaster } from 'react-hot-toast';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import MobileRestriction from '@/components/common/MobileRestriction';
 import LandingPage from '@/pages/LandingPage';
 import WelcomeSetup from '@/pages/WelcomeSetup';
 import InboxPage from '@/pages/InboxPage';
@@ -109,36 +110,38 @@ const AnimatedRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <Router>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: 'var(--color-toast-bg)',
-            color: 'var(--color-toast-text)',
-            border: '1px solid var(--color-toast-border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '1rem',
-            fontSize: '0.9375rem',
-            boxShadow: 'var(--color-toast-shadow)',
-          },
-          success: {
-            iconTheme: {
-              primary: 'var(--color-status-success)',
-              secondary: 'white',
+    <MobileRestriction>
+      <Router>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: 'var(--color-toast-bg)',
+              color: 'var(--color-toast-text)',
+              border: '1px solid var(--color-toast-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '1rem',
+              fontSize: '0.9375rem',
+              boxShadow: 'var(--color-toast-shadow)',
             },
-          },
-          error: {
-            iconTheme: {
-              primary: 'var(--color-status-error)',
-              secondary: 'white',
+            success: {
+              iconTheme: {
+                primary: 'var(--color-status-success)',
+                secondary: 'white',
+              },
             },
-          },
-        }}
-      />
-      <AnimatedRoutes />
-    </Router>
+            error: {
+              iconTheme: {
+                primary: 'var(--color-status-error)',
+                secondary: 'white',
+              },
+            },
+          }}
+        />
+        <AnimatedRoutes />
+      </Router>
+    </MobileRestriction>
   );
 };
 

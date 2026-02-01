@@ -42,6 +42,41 @@ const SHORTCUT_MIME_TYPE = 'application/vnd.google-apps.shortcut';
 const isExcludedMimeType = (mimeType?: string) =>
   mimeType === FOLDER_MIME_TYPE || mimeType === SHORTCUT_MIME_TYPE;
 
+const AI_COOLDOWN_STORAGE_KEY = 'aiCooldown';
+
+const readAiCooldown = (defaultRemaining: number) => {
+  try {
+    const raw = sessionStorage.getItem(AI_COOLDOWN_STORAGE_KEY);
+    if (!raw) {
+      return { until: null, remaining: defaultRemaining };
+    }
+    const parsed = JSON.parse(raw);
+    const until = typeof parsed?.until === 'number' ? parsed.until : null;
+    const remaining = typeof parsed?.remaining === 'number' ? parsed.remaining : defaultRemaining;
+    if (until !== null && !Number.isFinite(until)) {
+      return { until: null, remaining: defaultRemaining };
+    }
+    return { until, remaining };
+  } catch {
+    return { until: null, remaining: defaultRemaining };
+  }
+};
+
+const writeAiCooldown = (until: number | null, remaining: number) => {
+  try {
+    if (until === null) {
+      sessionStorage.removeItem(AI_COOLDOWN_STORAGE_KEY);
+      return;
+    }
+    sessionStorage.setItem(
+      AI_COOLDOWN_STORAGE_KEY,
+      JSON.stringify({ until, remaining })
+    );
+  } catch {
+    // Best-effort cache only; ignore storage failures.
+  }
+};
+
 const InboxPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -64,7 +99,7 @@ const InboxPage: React.FC = () => {
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const initialCooldown = readAiCooldown();
+  const initialCooldown = readAiCooldown(AI_MAX_FILES_PER_CALL);
   const [aiCooldownUntil, setAiCooldownUntil] = useState<number | null>(initialCooldown.until);
   const [aiRemainingQuota, setAiRemainingQuota] = useState<number>(initialCooldown.remaining);
   const aiSuggestionsLocked = !config.features.aiSuggestionsEnabled;

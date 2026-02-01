@@ -22,7 +22,6 @@ import toast from 'react-hot-toast';
 import { configManager, type AppConfig, type Category, type Rule, type AiSuggestionFeedback, type FeedbackSummary, type AiDecisionCacheEntry, type OnboardingState, type AssignmentMeta } from './configManager';
 import { cacheManager } from './cacheManager';
 import { withOptimisticUpdate } from './optimisticUpdate';
-import { config } from './config';
 
 const GEMINI_MODEL = (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || 'gemma-3n-e4b-it';
 
@@ -1244,6 +1243,7 @@ class UnifiedClient {
       ...(config.feedback.aiSuggestions || []),
       entry,
     ];
+    pruneAiFeedback(config);
 
     const summary = buildFeedbackSummary(config.feedback.aiSuggestions || [], config.categories || []);
     if (summary) {

@@ -997,9 +997,8 @@ const ReviewQueuePage: React.FC = () => {
 
               <button
                 className="bulk-action-btn primary"
-                disabled={aiSuggestionsLocked}
                 onClick={bulkAcceptSuggestions}
-                disabled={isBulkProcessing}
+                disabled={aiSuggestionsLocked || isBulkProcessing}
               >
                 <i className="fa-solid fa-robot"></i>
                 <span>Assign AI Suggestions</span>

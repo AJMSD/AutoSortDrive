@@ -156,9 +156,6 @@ const validateOAuthConfig = (): { valid: boolean; errors: string[] } => {
     errors.push('❌ VITE_GOOGLE_CLIENT_ID is still set to placeholder value');
   }
 
-  // Log current origin for authorized JavaScript origins verification
-  const currentOrigin = window.location.origin;
-
   return { valid: errors.length === 0, errors };
 };
 
@@ -436,8 +433,6 @@ export const useAuth = (): AuthContextType => {
         logger.warn('⏰ Access token expired, logging out');
         logout();
       } else {
-        const expiryMinutes = Math.floor(timeUntilExpiry / 60000);
-
         const showWarningToast = (minutesLeft: number) => {
           if (refreshPromptShownRef.current) {
             return;

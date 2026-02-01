@@ -14,12 +14,6 @@
 import { driveClient } from './driveClient';
 import { logger } from '@/utils/logger';
 
-const parseTimestamp = (value?: string): number => {
-  if (!value) return 0;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
 const CONFIG_FILE_NAME = 'autosortdrive-config.json';
 const CONFIG_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 

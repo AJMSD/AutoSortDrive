@@ -1061,14 +1061,9 @@ class UnifiedClient {
     const configVersion = effectiveConfig.updatedAt ? new Date(effectiveConfig.updatedAt).getTime() : Date.now();
     logger.debug('� listFiles: Config loaded - rules:', rules.length, 'reviewQueue:', reviewQueue.length);
     
-    logger.debug('� listFiles: Config loaded - rules:', rules.length, 'reviewQueue:', reviewQueue.length);
-    
     // Create a Set of file IDs in review queue for fast lookup
     const reviewFileIds = new Set(reviewQueue.map((item: any) => item.fileId));
     
-    if (reviewFileIds.size > 0) {
-      logger.debug('📋 listFiles: Files in review queue:', Array.from(reviewFileIds));
-    }
     
     const folderCategoryMap = new Map<string, Category>();
     effectiveConfig.categories.forEach(category => {
@@ -1095,11 +1090,7 @@ class UnifiedClient {
       const matchesRules = !categorized && evaluateFileAgainstRules(file, rules);
       const inReview = inStoredQueue || matchesRules;
       
-      if (inReview) {
-        logger.debug('✅ listFiles: File marked inReview:', file.name, '(inQueue:', inStoredQueue, 'matchesRules:', matchesRules, ')');
-      }
-      
-        return {
+      return {
           ...file,
           categoryId,
           categorized,
@@ -1625,6 +1616,7 @@ class UnifiedClient {
 
     const syncResult = await this.syncFolderCategories(accessToken, config, { force: false });
     const effectiveConfig = syncResult.config;
+    const configVersion = parseTimestamp(effectiveConfig.updatedAt) || Date.now();
     const rules = effectiveConfig.rules || [];
     const categories = effectiveConfig.categories || [];
     const assignments = effectiveConfig.assignments || {};
@@ -1882,6 +1874,7 @@ class UnifiedClient {
       success: true,
       queue: enhancedQueue,
       total: enhancedQueue.length,
+      configVersion,
     };
   }
 

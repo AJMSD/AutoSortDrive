@@ -16,6 +16,20 @@ const inMemoryCounters = {
   perUser: new Map(),
 };
 
+const parseCsv = (value) =>
+  typeof value === 'string'
+    ? value.split(',').map((entry) => entry.trim()).filter(Boolean)
+    : [];
+
+const EXPECTED_AUDIENCES = parseCsv(
+  process.env.GOOGLE_OAUTH_CLIENT_IDS ||
+    process.env.GOOGLE_OAUTH_CLIENT_ID ||
+    process.env.GOOGLE_CLIENT_ID ||
+    process.env.VITE_GOOGLE_CLIENT_ID
+);
+
+const REQUIRED_SCOPES = parseCsv(process.env.GOOGLE_OAUTH_REQUIRED_SCOPES || process.env.GOOGLE_REQUIRED_SCOPES);
+
 const nowMs = () => Date.now();
 const minuteBucket = (ts) => Math.floor(ts / 60000);
 const dayBucket = (ts) => Math.floor(ts / 86400000);
@@ -36,7 +50,25 @@ const verifyGoogleToken = async (token) => {
   const response = await fetch(url);
   if (!response.ok) return null;
   const data = await response.json();
-  return data && data.email ? data : null;
+  if (!data || !data.email) return null;
+
+  if (EXPECTED_AUDIENCES.length > 0) {
+    const aud = data.aud || '';
+    const azp = data.azp || '';
+    const matchesAudience = EXPECTED_AUDIENCES.includes(aud) || EXPECTED_AUDIENCES.includes(azp);
+    if (!matchesAudience) return null;
+  }
+
+  if (REQUIRED_SCOPES.length > 0) {
+    const tokenScopes =
+      typeof data.scope === 'string'
+        ? data.scope.split(' ').map((entry) => entry.trim()).filter(Boolean)
+        : [];
+    const hasAllScopes = REQUIRED_SCOPES.every((scope) => tokenScopes.includes(scope));
+    if (!hasAllScopes) return null;
+  }
+
+  return data;
 };
 
 const getAllowedModels = () => {

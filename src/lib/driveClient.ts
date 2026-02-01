@@ -22,7 +22,6 @@ class DriveClient {
     // Add response interceptor for debugging
     this.client.interceptors.response.use(
       (response) => {
-        logger.debug('📥 Drive API Response:', response.config.url, response.status);
         return response;
       },
       (error) => {
@@ -54,8 +53,6 @@ class DriveClient {
     orderBy?: string;
     excludeFolders?: boolean;
   }) {
-    logger.debug('📁 Fetching files from Drive API...');
-    
     const queryParams: any = {
       pageSize: params?.pageSize || 100, // Reduced from 1000 for better pagination control
       orderBy: params?.orderBy || 'modifiedTime desc',
@@ -95,8 +92,6 @@ class DriveClient {
         params: queryParams,
       });
 
-      logger.debug('✅ Files retrieved:', response.data.files?.length || 0, '| nextPageToken:', response.data.nextPageToken ? 'yes' : 'no');
-      
       return {
         success: true,
         files: response.data.files || [],

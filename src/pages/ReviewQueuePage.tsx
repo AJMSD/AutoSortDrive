@@ -11,6 +11,7 @@ import { config } from '@/lib/config';
 import { downloadFilesAsZip } from '@/lib/bulkDownload';
 import './ReviewQueuePage.css';
 
+// Review queue view that merges stored suggestions and rule-based matches with bulk actions and feedback.
 interface Category {
   id: string;
   name: string;
@@ -51,6 +52,9 @@ const ReviewQueuePage: React.FC = () => {
     count: 0,
     timers: [],
   });
+  const loadDataInFlightRef = useRef(false);
+  const lastAutoRefreshAtRef = useRef(0);
+  const pendingForceRefreshRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showManualDropdown, setShowManualDropdown] = useState<string | null>(null);
   const manualDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -89,16 +93,25 @@ const ReviewQueuePage: React.FC = () => {
 
   // Refresh when window becomes visible/focused
   useEffect(() => {
+    const triggerAutoRefresh = () => {
+      const now = Date.now();
+      if (now - lastAutoRefreshAtRef.current < 750) {
+        return;
+      }
+      lastAutoRefreshAtRef.current = now;
+      loadData();
+    };
+
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         logger.debug('👁️ Review queue tab visible, refreshing...');
-        loadData();
+        triggerAutoRefresh();
       }
     };
 
     const handleFocus = () => {
       logger.debug('🎯 Review queue window focused, refreshing...');
-      loadData();
+      triggerAutoRefresh();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -111,6 +124,13 @@ const ReviewQueuePage: React.FC = () => {
   }, []);
 
   const loadData = async (forceRefresh: boolean = false) => {
+    if (loadDataInFlightRef.current) {
+      if (forceRefresh) {
+        pendingForceRefreshRef.current = true;
+      }
+      return;
+    }
+    loadDataInFlightRef.current = true;
     setIsLoading(true);
     try {
       const CACHE_KEY = 'review_queue';
@@ -129,7 +149,7 @@ const ReviewQueuePage: React.FC = () => {
         }) || [];
         const inboxHasInReview = inboxCache.some(file => file?.inReview);
 
-        if (cachedQueue && cachedQueue.length >= 0) {
+        if (cachedQueue) {
           if (cachedQueue.length == 0 && inboxHasInReview) {
             // Force refresh when inbox indicates review items but cache is empty
             forceRefresh = true;
@@ -145,7 +165,6 @@ const ReviewQueuePage: React.FC = () => {
               });
             }
 
-            logger.debug('???? Using cached review queue:', sanitizedQueue.length, 'items');
             setReviewFiles(sanitizedQueue);
             
             // Animate confidence scores
@@ -211,6 +230,13 @@ const ReviewQueuePage: React.FC = () => {
       }
 
       if (queueRes.success) {
+        const queueConfigVersion =
+          typeof queueRes.configVersion === 'number' && Number.isFinite(queueRes.configVersion)
+            ? queueRes.configVersion
+            : undefined;
+        if (queueConfigVersion !== undefined) {
+          userCache.setConfigVersion(queueConfigVersion);
+        }
         const queueItems = (queueRes.queue || []).filter((item: ReviewFile) => {
           const mimeType = item.file?.mimeType || item.mimeType || '';
           return !isExcludedMimeType(mimeType);
@@ -220,17 +246,8 @@ const ReviewQueuePage: React.FC = () => {
         // Cache the review queue
         userCache.set(CACHE_KEY, queueItems, {
           ttl: CACHE_TTL,
-          configVersion: cachedConfigVersion ?? undefined,
+          configVersion: queueConfigVersion ?? cachedConfigVersion ?? undefined,
         });
-        logger.debug('💾 Cached review queue:', queueItems.length, 'items');
-        
-        // Debug logging
-        logger.debug('Review queue loaded - total items:', queueItems.length);
-        if (queueItems.length > 0) {
-          logger.debug('First review item:', queueItems[0]);
-          logger.debug('First item file object:', queueItems[0].file);
-        }
-        
         // Animate confidence scores
         const confidenceMap = new Map<string, number>();
         queueItems.forEach((item: ReviewFile) => {
@@ -246,7 +263,12 @@ const ReviewQueuePage: React.FC = () => {
       logger.error('Error loading data:', error);
       toast.error('Failed to load data: ' + error.message);
     } finally {
+      loadDataInFlightRef.current = false;
       setIsLoading(false);
+      if (pendingForceRefreshRef.current) {
+        pendingForceRefreshRef.current = false;
+        loadData(true);
+      }
     }
   };
 

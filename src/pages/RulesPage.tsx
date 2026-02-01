@@ -7,6 +7,7 @@ import { config } from '@/lib/config';
 import { userCache } from '@/utils/userCache';
 import './RulesPage.css';
 
+// Rules + AI settings management; loads categories/rules/settings and persists edits.
 interface Category {
   id: string;
   name: string;
@@ -337,7 +338,8 @@ const RulesPage: React.FC = () => {
           cat.id === category.id ? updatedCategory : cat
         );
         setCategories(updatedCategories);
-        userCache.set('categories', updatedCategories);
+        const currentConfigVersion = userCache.getConfigVersion();
+        userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
         toast.success('Category details saved');
       } else {
         toast.error(response.error || 'Failed to save category details');
@@ -624,7 +626,7 @@ const RulesPage: React.FC = () => {
         </div>
         <div className="pagination-controls">
           <span
-            className={`pagination-link \${currentCategoryPage === 1 ? 'disabled' : ''}`}
+            className={`pagination-link ${currentCategoryPage === 1 ? 'disabled' : ''}`}
             onClick={handleCategoryPreviousPage}
           >
             Previous
@@ -649,7 +651,7 @@ const RulesPage: React.FC = () => {
           </span>
           <span className="pagination-separator">|</span>
           <span
-            className={`pagination-link \${currentCategoryPage >= totalCategoryPages || totalCategoryPages == 0 ? 'disabled' : ''}`}
+            className={`pagination-link ${currentCategoryPage >= totalCategoryPages || totalCategoryPages == 0 ? 'disabled' : ''}`}
             onClick={handleCategoryNextPage}
           >
             Next

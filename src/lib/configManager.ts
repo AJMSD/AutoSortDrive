@@ -149,7 +149,6 @@ export interface AppConfig {
 class ConfigManager {
   private configFileId: string | null = null;
   private cachedConfig: AppConfig | null = null;
-  private cachedConfigVersion: number | null = null;
   private cachedConfigAt: number | null = null;
 
   /**
@@ -333,7 +332,6 @@ class ConfigManager {
         });
 
         this.cachedConfig = config;
-        this.cachedConfigVersion = parseTimestamp(config.updatedAt);
         this.cachedConfigAt = Date.now();
         logger.debug('✅ Config loaded:', {
           categories: config.categories?.length || 0,
@@ -372,7 +370,6 @@ class ConfigManager {
 
       this.configFileId = createResult.file.id;
       this.cachedConfig = defaultConfig;
-      this.cachedConfigVersion = parseTimestamp(defaultConfig.updatedAt);
       this.cachedConfigAt = Date.now();
 
       logger.debug('✅ New config file created:', createResult.file.id);
@@ -433,7 +430,6 @@ class ConfigManager {
 
       if (result.success) {
         this.cachedConfig = config;
-        this.cachedConfigVersion = parseTimestamp(config.updatedAt);
         this.cachedConfigAt = Date.now();
         logger.debug('✅ Config saved successfully');
       }
@@ -541,12 +537,7 @@ class ConfigManager {
   clearCache() {
     this.configFileId = null;
     this.cachedConfig = null;
-    this.cachedConfigVersion = null;
     this.cachedConfigAt = null;
-  }
-
-  getCachedConfigVersion(): number | null {
-    return this.cachedConfigVersion;
   }
 }
 

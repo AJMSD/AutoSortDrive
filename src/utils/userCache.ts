@@ -57,15 +57,19 @@ class UserCache {
 
     try {
       const cacheKey = this.getCacheKey(key, userId);
+      const resolvedConfigVersion =
+        typeof options?.configVersion === 'number' && Number.isFinite(options.configVersion)
+          ? options.configVersion
+          : this.getConfigVersion() ?? undefined;
       const entry: CacheEntry<T> = {
         data,
         timestamp: Date.now(),
         userId,
-        configVersion: options?.configVersion, // TODO [CACHE-SYNC-4]: Store config version
+        configVersion: resolvedConfigVersion, // TODO [CACHE-SYNC-4]: Store config version
       };
 
       sessionStorage.setItem(cacheKey, JSON.stringify(entry));
-      logger.debug(`💾 Cached data for user: ${key} (${userId})${options?.configVersion ? ` [v${options.configVersion}]` : ''}`);
+      logger.debug(`💾 Cached data for user: ${key} (${userId})${resolvedConfigVersion ? ` [v${resolvedConfigVersion}]` : ''}`);
       return true;
     } catch (error) {
       logger.error('Failed to set cache:', error);
@@ -102,7 +106,12 @@ class UserCache {
 
       // TODO [CACHE-SYNC-4]: Check config version staleness
       // If caller provides a configVersion, verify cached data matches
-      if (options?.configVersion !== undefined && entry.configVersion !== undefined) {
+      if (options?.configVersion !== undefined) {
+        if (entry.configVersion === undefined) {
+          logger.debug(`🔄 Config version missing for ${key}, invalidating cache`);
+          sessionStorage.removeItem(cacheKey);
+          return null;
+        }
         if (entry.configVersion !== options.configVersion) {
           logger.debug(`🔄 Config version mismatch for ${key} (cached: v${entry.configVersion}, current: v${options.configVersion}), invalidating cache`);
           sessionStorage.removeItem(cacheKey);

@@ -158,9 +158,6 @@ const validateOAuthConfig = (): { valid: boolean; errors: string[] } => {
 
   // Log current origin for authorized JavaScript origins verification
   const currentOrigin = window.location.origin;
-  logger.debug('🌐 Current Origin:', currentOrigin);
-  logger.debug('ℹ️ Make sure this origin is added to "Authorized JavaScript origins" in Google Cloud Console');
-  logger.debug('   Expected origins: http://localhost:5173, https://yourdomain.com');
 
   return { valid: errors.length === 0, errors };
 };
@@ -170,10 +167,8 @@ export const useAuth = (): AuthContextType => {
     const stored = authStorage.getStoredUser();
     if (stored) {
       if (stored.expiresAt && stored.expiresAt > Date.now()) {
-        logger.debug('✅ Restored user from session storage:', stored.email);
         return stored as User;
       }
-      logger.debug('⏰ Stored token expired, clearing session storage');
       authStorage.clearStoredUser();
     }
     return null;
@@ -183,7 +178,6 @@ export const useAuth = (): AuthContextType => {
   const refreshPromptShownRef = React.useRef(false);
 
   const login = useCallback(async () => {
-    logger.debug('🔐 Starting OAuth login flow...');
     
     // Validate configuration before attempting OAuth
     const validation = validateOAuthConfig();
@@ -193,7 +187,6 @@ export const useAuth = (): AuthContextType => {
       alert('OAuth configuration error. Check console for details.');
       return;
     }
-    logger.debug('✅ OAuth configuration validated');
 
     setIsLoading(true);
     
@@ -209,7 +202,6 @@ export const useAuth = (): AuthContextType => {
         logger.error('❌', errorMsg);
         throw new Error(errorMsg);
       }
-      logger.debug('✅ Google Identity Services library loaded');
 
       // Define scopes for Drive API access
       const scopes = [
@@ -221,8 +213,6 @@ export const useAuth = (): AuthContextType => {
         'email',                                           // User email
       ].join(' ');
 
-      logger.debug('🔑 Initializing Token Client with scopes:', scopes);
-      logger.debug('🆔 Client ID:', config.google.clientId.substring(0, 20) + '...');
 
       // Use OAuth2 Token Client for Drive API access with POPUP mode
       // We're calling Drive API directly, so no CORS issues with Apps Script
@@ -231,7 +221,6 @@ export const useAuth = (): AuthContextType => {
         scope: scopes,
         // ux_mode: 'popup' is default - perfect for calling Google APIs directly
         callback: async (response: GoogleTokenResponse) => {
-          logger.debug('📨 OAuth callback received');
           
           // Check for errors in response
           if (response.error) {
@@ -246,18 +235,13 @@ export const useAuth = (): AuthContextType => {
           }
 
           if (response.access_token) {
-            logger.debug('✅ Access token received');
             const expiresInSeconds =
               typeof response.expires_in === 'number' && response.expires_in > 0
                 ? response.expires_in
                 : 3600;
-            logger.debug('   Token type:', response.token_type);
-            logger.debug('   Expires in:', expiresInSeconds, 'seconds');
-            logger.debug('   Granted scopes:', response.scope);
             
             // Get user info from Google
             try {
-              logger.debug('👤 Fetching user info from Google...');
               const userInfoResponse = await fetch(
                 'https://www.googleapis.com/oauth2/v2/userinfo',
                 {
@@ -272,11 +256,6 @@ export const useAuth = (): AuthContextType => {
               }
               
               const userInfo = await userInfoResponse.json();
-              logger.debug('✅ User info retrieved:', {
-                email: userInfo.email,
-                name: userInfo.name,
-                hasProfilePicture: !!userInfo.picture,
-              });
               
               const userData: User = {
                 name: userInfo.name,
@@ -289,8 +268,6 @@ export const useAuth = (): AuthContextType => {
               setUser(userData);
               authStorage.setStoredUser(userData);
               
-              logger.debug('✅ Authentication successful! User:', userInfo.email);
-              logger.debug('   Token expires at:', new Date(userData.expiresAt).toLocaleString());
             } catch (error: any) {
               logger.error('❌ Failed to fetch user info:', {
                 error: error.message,
@@ -348,7 +325,6 @@ export const useAuth = (): AuthContextType => {
         },
       });
 
-      logger.debug('🚀 Requesting access token (opening popup)...');
       // Request access token (this will show the consent popup)
       client.requestAccessToken();
       // Popup mode works perfectly for calling Google APIs directly
@@ -365,23 +341,19 @@ export const useAuth = (): AuthContextType => {
   }, []);
 
   const logout = useCallback(() => {
-    logger.debug('🚪 Logging out user...');
     
     // Clear config cache
     unifiedClient.clearCache();
     
     // Clear all cached data (files, categories, etc.)
     userCache.clearAllCache();
-    logger.debug('🗑️ All caches cleared');
     
     setUser(null);
     authStorage.clearStoredUser();
-    logger.debug('✅ User logged out successfully');
   }, []);
 
   // Refresh access token
   const refreshToken = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
-    logger.debug('Refreshing access token...');
     
     if (!window.google) {
       logger.error('Google Identity Services not available');
@@ -411,7 +383,6 @@ export const useAuth = (): AuthContextType => {
             }
 
             if (response.access_token && user) {
-              logger.debug('Token refreshed successfully');
               const expiresInSeconds =
                 typeof response.expires_in === 'number' && response.expires_in > 0
                   ? response.expires_in
@@ -425,7 +396,6 @@ export const useAuth = (): AuthContextType => {
               
               setUser(updatedUser);
               authStorage.setStoredUser(updatedUser);
-              logger.debug('   New token expires at:', new Date(updatedUser.expiresAt).toLocaleString());
               resolve({ success: true });
               return;
             }
@@ -467,7 +437,6 @@ export const useAuth = (): AuthContextType => {
         logout();
       } else {
         const expiryMinutes = Math.floor(timeUntilExpiry / 60000);
-        logger.debug(`⏰ Token expires in ${expiryMinutes} minutes`);
 
         const showWarningToast = (minutesLeft: number) => {
           if (refreshPromptShownRef.current) {

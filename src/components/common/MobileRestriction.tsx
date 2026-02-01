@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './MobileRestriction.css';
 
+// Wrapper that blocks the UI on small screens and shows a desktop-only message.
 const MobileRestriction: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
 

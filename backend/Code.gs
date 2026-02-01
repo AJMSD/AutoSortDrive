@@ -410,11 +410,13 @@ function handleListFiles(params) {
     }
     
     // DEBUG: Log review queue info
-    Logger.log('🔍 DEBUG handleListFiles: reviewQueue info:');
-    Logger.log('Total files in response: ' + response.files.length);
-    Logger.log('Rules count: ' + rules.length);
-    Logger.log('Files marked as inReview: ' + reviewFileIds.size);
-    Logger.log('Review file IDs: ' + JSON.stringify(Array.from(reviewFileIds)));
+    if (CONFIG.DEBUG) {
+      Logger.log('🔍 DEBUG handleListFiles: reviewQueue info:');
+      Logger.log('Total files in response: ' + response.files.length);
+      Logger.log('Rules count: ' + rules.length);
+      Logger.log('Files marked as inReview: ' + reviewFileIds.size);
+      Logger.log('Review file IDs: ' + JSON.stringify(Array.from(reviewFileIds)));
+    }
     
     // Enhance files with category info and review status
     const files = response.files.map(file => {
@@ -422,7 +424,7 @@ function handleListFiles(params) {
       const inReview = reviewFileIds.has(file.id);
       
       // DEBUG: Log if file is in review
-      if (inReview) {
+      if (inReview && CONFIG.DEBUG) {
         Logger.log('✅ File in review: ' + file.name + ' (ID: ' + file.id + ')');
       }
       
@@ -1700,9 +1702,11 @@ function handleGetReviewQueue(params) {
     filteredQueue.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
     
     // Logging the response
-    Logger.log('handleGetReviewQueue response - total items: ' + filteredQueue.length);
-    if (filteredQueue.length > 0) {
-      Logger.log('First item: ' + JSON.stringify(filteredQueue[0]));
+    if (CONFIG.DEBUG) {
+      Logger.log('handleGetReviewQueue response - total items: ' + filteredQueue.length);
+      if (filteredQueue.length > 0) {
+        Logger.log('First item: ' + JSON.stringify(filteredQueue[0]));
+      }
     }
     
     return {
@@ -1879,7 +1883,9 @@ function handleAutoAssign(body) {
       }
       
       // Logging before save
-      Logger.log('Adding to review queue - handleAutoAssign: ' + JSON.stringify(queueItem));
+      if (CONFIG.DEBUG) {
+        Logger.log('Adding to review queue - handleAutoAssign: ' + JSON.stringify(queueItem));
+      }
       
       // Save config
       writeConfig(config);
@@ -2087,9 +2093,11 @@ function handleBatchAutoAssign(body) {
     });
     
     // Logging before save
-    Logger.log('Batch auto-assign - reviewQueue items added: ' + results.noMatch.length);
-    if (config.reviewQueue && config.reviewQueue.length > 0) {
-      Logger.log('Sample queue item: ' + JSON.stringify(config.reviewQueue[config.reviewQueue.length - 1]));
+    if (CONFIG.DEBUG) {
+      Logger.log('Batch auto-assign - reviewQueue items added: ' + results.noMatch.length);
+      if (config.reviewQueue && config.reviewQueue.length > 0) {
+        Logger.log('Sample queue item: ' + JSON.stringify(config.reviewQueue[config.reviewQueue.length - 1]));
+      }
     }
     
     // Save config
@@ -2693,7 +2701,9 @@ function getExportMimeTypes(mimeType) {
  */
 function testHealthEndpoint() {
   const response = handleHealth();
-  Logger.log(response);
+  if (CONFIG.DEBUG) {
+    Logger.log(response);
+  }
 }
 
 /**
@@ -2701,7 +2711,9 @@ function testHealthEndpoint() {
  */
 function testInitEndpoint() {
   const response = handleInit();
-  Logger.log(response);
+  if (CONFIG.DEBUG) {
+    Logger.log(response);
+  }
 }
 
 /**
@@ -2712,8 +2724,12 @@ function testDriveAccess() {
   let count = 0;
   while (files.hasNext() && count < 5) {
     const file = files.next();
-    Logger.log(file.getName() + ' - ' + file.getMimeType());
+    if (CONFIG.DEBUG) {
+      Logger.log(file.getName() + ' - ' + file.getMimeType());
+    }
     count++;
   }
-  Logger.log('Total accessible files: at least ' + count);
+  if (CONFIG.DEBUG) {
+    Logger.log('Total accessible files: at least ' + count);
+  }
 }

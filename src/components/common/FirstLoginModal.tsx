@@ -58,7 +58,7 @@ const FirstLoginModal: React.FC<FirstLoginModalProps> = ({ onClose, onGoToAbout 
             <p>We can scan your personal Drive and shared drives to create categories from folders that contain files.
               Files will appear under those categories. No files are moved or modified.</p>
             <div className="decision-options">
-              <label className={`decision-option \${autoCategorizeDecision === 'accepted' ? 'selected' : ''}`}>
+              <label className={`decision-option ${autoCategorizeDecision === 'accepted' ? 'selected' : ''}`}>
                 <input
                   type="radio"
                   name="auto-categorize-folders"
@@ -71,7 +71,7 @@ const FirstLoginModal: React.FC<FirstLoginModalProps> = ({ onClose, onGoToAbout 
                 />
                 <span>Yes, auto-categorize my folders</span>
               </label>
-              <label className={`decision-option \${autoCategorizeDecision === 'declined' ? 'selected' : ''}`}>
+              <label className={`decision-option ${autoCategorizeDecision === 'declined' ? 'selected' : ''}`}>
                 <input
                   type="radio"
                   name="auto-categorize-folders"

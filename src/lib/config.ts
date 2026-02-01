@@ -40,17 +40,6 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
     errors.push('VITE_APPS_SCRIPT_DEPLOY_URL is not properly configured');
   }
 
-  if (config.features.debugMode) {
-    console.log('🔍 Debug mode enabled');
-    console.log('Configuration:', {
-      clientId: config.google.clientId.substring(0, 20) + '...',
-      apiKey: config.google.apiKey.substring(0, 10) + '...',
-      appsScriptUrl: config.api.appsScriptUrl,
-      aiEnabled: config.features.aiEnabled,
-      aiSuggestionsEnabled: config.features.aiSuggestionsEnabled,
-    });
-  }
-
   return {
     valid: errors.length === 0,
     errors,

@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { logger } from '@/utils/logger';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { appsScriptClient } from '@/lib/appsScriptClient';
 import { config } from '@/lib/config';
 import { userCache } from '@/utils/userCache';
+import { getFileTypeFromMime, getRelativeTime } from '@/utils/fileHelpers';
 import toast from 'react-hot-toast';
 import Tooltip from '@/components/common/Tooltip';
 import FileThumbnail from '@/components/common/FileThumbnail';
@@ -12,6 +13,7 @@ import { downloadFilesAsZip, prefetchDownloadMetadata } from '@/lib/bulkDownload
 import { authStorage } from '@/utils/authStorage';
 import './InboxPage.css';
 
+// Main inbox view: loads/caches Drive files, supports filters, pagination, bulk actions, and AI auto-assign.
 interface FileItem {
   id: string;
   name: string;
@@ -112,33 +114,8 @@ const InboxPage: React.FC = () => {
     return saved ? parseInt(saved, 10) : 100;
   });
   const [previewFile, setPreviewFile] = useState<{id: string; name: string; mimeType: string} | null>(null);
-
-  // Map MIME types to file types
-  const getFileType = (mimeType: string): FileItem['type'] => {
-    if (mimeType.includes('document')) return 'document';
-    if (mimeType.includes('spreadsheet')) return 'sheet';
-    if (mimeType.includes('presentation')) return 'slide';
-    if (mimeType.includes('pdf')) return 'pdf';
-    if (mimeType.includes('image/')) return 'image';
-    if (mimeType.includes('video/')) return 'video';
-    if (mimeType.includes('folder')) return 'folder';
-    return 'other';
-  };
-
-  // Format relative time
-  const getRelativeTime = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-    return `${Math.floor(diffDays / 365)} years ago`;
-  };
+  const fetchFilesInFlightRef = useRef(false);
+  const lastAutoRefreshAtRef = useRef(0);
 
   // Simple cache key - we cache ALL files, filtering happens client-side
   const getCacheKey = () => {
@@ -170,7 +147,6 @@ const InboxPage: React.FC = () => {
       }
 
       if (sanitizedCache.length > 0) {
-        logger.debug('???? Loading files from user cache:', sanitizedCache.length);
         setFiles(sanitizedCache);
         setShouldAnimate(false);
         setIsLoading(false);
@@ -180,6 +156,10 @@ const InboxPage: React.FC = () => {
       }
     }
 
+    if (fetchFilesInFlightRef.current) {
+      return;
+    }
+    fetchFilesInFlightRef.current = true;
     
     setIsLoading(true);
     setFiles([]);
@@ -200,15 +180,6 @@ const InboxPage: React.FC = () => {
         userCache.setConfigVersion(configVersion);
       }
       
-      // DEBUG: Check if backend is returning inReview flag
-      logger.debug('🔍 DEBUG: First response from backend:', {
-        success: firstResponse.success,
-        fileCount: firstResponse.files?.length,
-        sampleFile: firstResponse.files?.[0],
-        hasInReviewFlag: firstResponse.files?.[0]?.inReview !== undefined,
-        configVersion, // Log config version
-      });
-      
       if (firstResponse.success) {
         const mappedFiles: FileItem[] = firstResponse.files
           .filter((file: any) => !isExcludedMimeType(file.mimeType))
@@ -216,7 +187,7 @@ const InboxPage: React.FC = () => {
           id: file.id,
           name: file.name,
           mimeType: file.mimeType,
-          type: getFileType(file.mimeType),
+          type: getFileTypeFromMime(file.mimeType),
           modified: getRelativeTime(file.modifiedTime),
           modifiedDate: new Date(file.modifiedTime),
           size: file.size,
@@ -230,15 +201,6 @@ const InboxPage: React.FC = () => {
           inReview: file.inReview || false,
           assignmentMeta: file.assignmentMeta || undefined,
         }));
-
-        // DEBUG: Check mapped files for inReview status
-        const inReviewCount = mappedFiles.filter(f => f.inReview).length;
-        logger.debug('🔍 DEBUG: Mapped files:', {
-          total: mappedFiles.length,
-          inReviewCount,
-          sampleMapped: mappedFiles[0],
-          filesInReview: mappedFiles.filter(f => f.inReview).map(f => ({ id: f.id, name: f.name, inReview: f.inReview }))
-        });
 
         // Show first batch immediately
         setFiles(mappedFiles);
@@ -266,6 +228,8 @@ const InboxPage: React.FC = () => {
       logger.error('Error fetching files:', error);
       toast.error('Failed to load files from Drive');
       setIsLoading(false);
+    } finally {
+      fetchFilesInFlightRef.current = false;
     }
   };
 
@@ -292,12 +256,12 @@ const InboxPage: React.FC = () => {
         
         if (response.success) {
           const mappedFiles: FileItem[] = response.files
-            .filter((file: any) => !isExcludedMimeType(file.mimeType))
-            .map((file: any) => ({
+          .filter((file: any) => !isExcludedMimeType(file.mimeType))
+          .map((file: any) => ({
             id: file.id,
             name: file.name,
             mimeType: file.mimeType,
-            type: getFileType(file.mimeType),
+            type: getFileTypeFromMime(file.mimeType),
             modified: getRelativeTime(file.modifiedTime),
             modifiedDate: new Date(file.modifiedTime),
             size: file.size,
@@ -375,6 +339,10 @@ const InboxPage: React.FC = () => {
 
   // Refresh files - check for new files in Drive and merge with existing
   const refreshFiles = async () => {
+    if (fetchFilesInFlightRef.current) {
+      return;
+    }
+    fetchFilesInFlightRef.current = true;
     setIsRefreshing(true);
     
     try {
@@ -394,7 +362,7 @@ const InboxPage: React.FC = () => {
           id: file.id,
           name: file.name,
           mimeType: file.mimeType,
-          type: getFileType(file.mimeType),
+          type: getFileTypeFromMime(file.mimeType),
           modified: getRelativeTime(file.modifiedTime),
           modifiedDate: new Date(file.modifiedTime),
           size: file.size,
@@ -450,6 +418,7 @@ const InboxPage: React.FC = () => {
       logger.error('Error refreshing files:', error);
       toast.error('Failed to refresh files');
     } finally {
+      fetchFilesInFlightRef.current = false;
       setIsRefreshing(false);
     }
   };
@@ -485,16 +454,25 @@ const InboxPage: React.FC = () => {
   // This catches external Drive changes (files added/modified outside the app)
   // Pattern copied from CategoriesPage for consistency
   useEffect(() => {
+    const triggerAutoRefresh = () => {
+      const now = Date.now();
+      if (now - lastAutoRefreshAtRef.current < 750) {
+        return;
+      }
+      lastAutoRefreshAtRef.current = now;
+      fetchFiles();
+    };
+
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         logger.debug('👁️ Tab visible again, refreshing files...');
-        fetchFiles();
+        triggerAutoRefresh();
       }
     };
 
     const handleFocus = () => {
       logger.debug('🎯 Window focused, refreshing files...');
-      fetchFiles();
+      triggerAutoRefresh();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -845,13 +823,11 @@ const InboxPage: React.FC = () => {
       userCache.remove(`category_files_${categoryId}`);
       logger.debug(`🗑️ Invalidated category cache for ${categoryId}`);
       
-      // Reload categories bypassing cache to update counts immediately
-      loadCategories(true);
-      
-      // Update categories cache count instead of invalidating
+      // Update categories state/cache count instead of refetching
       try {
-        const categoriesCache = userCache.get('categories');
-        if (categoriesCache && Array.isArray(categoriesCache)) {
+        if (categories.length === 0) {
+          loadCategories(true);
+        } else {
           const outgoingCounts = new Map<string, number>();
           let incomingCount = 0;
 
@@ -864,13 +840,14 @@ const InboxPage: React.FC = () => {
             }
           });
 
-          const updatedCategories = categoriesCache.map((cat: any) =>
+          const updatedCategories = categories.map((cat: any) =>
             cat.id === categoryId
               ? { ...cat, fileCount: Math.max(0, (cat.fileCount || 0) + incomingCount) }
               : outgoingCounts.has(cat.id)
                 ? { ...cat, fileCount: Math.max(0, (cat.fileCount || 0) - (outgoingCounts.get(cat.id) || 0)) }
                 : cat
           );
+          setCategories(updatedCategories);
           userCache.set('categories', updatedCategories, { configVersion: currentConfigVersion ?? undefined });
           logger.debug(`🔄 Updated category count in cache (+${incomingCount})`);
         }
@@ -885,8 +862,19 @@ const InboxPage: React.FC = () => {
     }
   };
 
-  const selectedCount = files.filter(f => f.selected).length;
-  const hasSelectedInReview = files.some(f => f.selected && f.inReview);
+  const { selectedCount, hasSelectedInReview } = useMemo(() => {
+    let count = 0;
+    let hasInReview = false;
+    for (const file of files) {
+      if (file.selected) {
+        count += 1;
+        if (file.inReview) {
+          hasInReview = true;
+        }
+      }
+    }
+    return { selectedCount: count, hasSelectedInReview: hasInReview };
+  }, [files]);
   const isAiCooldownActive = aiCooldownUntil !== null && Date.now() < aiCooldownUntil;
   const aiQuotaRemaining = isAiCooldownActive ? aiRemainingQuota : AI_MAX_FILES_PER_CALL;
   const aiSelectionLimitReached = selectedCount > AI_MAX_FILES_PER_CALL;
@@ -895,15 +883,6 @@ const InboxPage: React.FC = () => {
   // Apply all filters client-side on cached data
   const filteredFiles = useMemo(() => {
     let result = [...files];
-
-    // DEBUG: Log files before filtering
-    const beforeFilterInReview = result.filter(f => f.inReview).length;
-    logger.debug('🔍 DEBUG: Files before filtering:', {
-      totalFiles: result.length,
-      inReviewFiles: beforeFilterInReview,
-      sampleFile: result[0],
-      sampleInReview: result.find(f => f.inReview)
-    });
 
     // Apply search filter
     if (debouncedSearchQuery.trim()) {
@@ -977,18 +956,6 @@ const InboxPage: React.FC = () => {
   const paginatedFiles = filteredFiles.slice(startIndex, endIndex);
   const paginationStatus = isLoadingMore ? `${totalPages}+` : `${totalPages}`;
   
-  // Debug pagination
-  useEffect(() => {
-    logger.debug('📊 Pagination Debug:', {
-      totalFiles: files.length,
-      filteredFiles: filteredFiles.length,
-      itemsPerPage,
-      totalPages,
-      currentPage,
-      hasFilters: !!(debouncedSearchQuery || selectedTypes.length || selectedStatus.length || dateRange)
-    });
-  }, [files.length, filteredFiles.length, itemsPerPage, totalPages, currentPage, debouncedSearchQuery, selectedTypes.length, selectedStatus.length, dateRange]);
-
   const handlePreviousPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
@@ -1250,17 +1217,6 @@ const InboxPage: React.FC = () => {
           </div>
         ) : (
           paginatedFiles.map((file, index) => {
-            // DEBUG: Log each file being rendered
-            if (index === 0 || file.inReview) {
-              logger.debug('🔍 DEBUG: Rendering file:', {
-                index,
-                id: file.id,
-                name: file.name,
-                inReview: file.inReview,
-                categoryId: file.categoryId
-              });
-            }
-            
             return (
             <div
               key={file.id}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getFileTypeFromMime } from '@/utils/fileHelpers';
 import './FileThumbnail.css';
 
 interface FileThumbnailProps {
@@ -19,21 +20,9 @@ const FileThumbnail: React.FC<FileThumbnailProps> = ({
   const [thumbnailError, setThumbnailError] = useState(false);
   const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
 
-  // Get file type from MIME type
-  const getFileType = (mime: string): string => {
-    if (mime.includes('document')) return 'document';
-    if (mime.includes('spreadsheet')) return 'sheet';
-    if (mime.includes('presentation')) return 'slide';
-    if (mime.includes('pdf')) return 'pdf';
-    if (mime.includes('image/')) return 'image';
-    if (mime.includes('video/')) return 'video';
-    if (mime.includes('folder')) return 'folder';
-    return 'other';
-  };
-
   // Get emoji fallback icon
   const getEmojiIcon = (mime: string): string => {
-    const type = getFileType(mime);
+    const type = getFileTypeFromMime(mime);
     const icons: Record<string, string> = {
       document: '📄',
       sheet: '📊',
@@ -47,7 +36,7 @@ const FileThumbnail: React.FC<FileThumbnailProps> = ({
     return icons[type] || '📎';
   };
 
-  const fileType = getFileType(mimeType);
+  const fileType = getFileTypeFromMime(mimeType);
   const emojiIcon = getEmojiIcon(mimeType);
 
   // Determine what to show

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { logger } from '@/utils/logger';
 import { userCache } from '@/utils/userCache';
+import { getFileTypeFromMime, getRelativeTime } from '@/utils/fileHelpers';
 import { useParams, useNavigate } from 'react-router-dom';
 import { appsScriptClient } from '@/lib/appsScriptClient';
 import { config } from '@/lib/config';
@@ -11,6 +12,7 @@ import { downloadFilesAsZip } from '@/lib/bulkDownload';
 import { authStorage } from '@/utils/authStorage';
 import './CategoryViewPage.css';
 
+// Category detail view derived from cached inbox data (with fallback fetch); supports removal and bulk download.
 interface FileItem {
   id: string;
   name: string;
@@ -58,38 +60,70 @@ const CategoryViewPage: React.FC = () => {
   const [category, setCategory] = useState<Category | null>(null);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isInboxCacheEmpty, setIsInboxCacheEmpty] = useState(false);
-
-  // Map MIME types to file types
-  const getFileType = (mimeType: string): FileItem['type'] => {
-    if (mimeType.includes('document')) return 'document';
-    if (mimeType.includes('spreadsheet')) return 'sheet';
-    if (mimeType.includes('presentation')) return 'slide';
-    if (mimeType.includes('pdf')) return 'pdf';
-    if (mimeType.includes('image/')) return 'image';
-    if (mimeType.includes('video/')) return 'video';
-    if (mimeType.includes('folder')) return 'folder';
-    return 'other';
-  };
-
-  // Format relative time
-  const getRelativeTime = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-    return `${Math.floor(diffDays / 365)} years ago`;
-  };
+  const inboxHydrationRef = useRef<Promise<{ files: any[]; configVersion?: number } | null> | null>(null);
 
   useEffect(() => {
     if (!categoryId) return;
 
     let isActive = true;
+
+    const hydrateInboxCache = async () => {
+      if (!inboxHydrationRef.current) {
+        inboxHydrationRef.current = (async () => {
+          const params: any = { pageSize: 1000 };
+          const firstResponse = await appsScriptClient.listFiles(params);
+          if (!firstResponse.success) {
+            return null;
+          }
+
+          const configVersion =
+            typeof firstResponse.configVersion === 'number' && Number.isFinite(firstResponse.configVersion)
+              ? firstResponse.configVersion
+              : undefined;
+          if (configVersion !== undefined) {
+            userCache.setConfigVersion(configVersion);
+          }
+
+          const mapFiles = (items: any[]) =>
+            items.map((file: any) => ({
+              id: file.id,
+              name: file.name,
+              mimeType: file.mimeType,
+              type: file.type || getFileTypeFromMime(file.mimeType),
+              modified: getRelativeTime(file.modifiedTime),
+              modifiedDate: new Date(file.modifiedTime),
+              selected: false,
+              parents: file.parents || [],
+              thumbnailLink: file.thumbnailLink,
+              iconLink: file.iconLink,
+              assignmentMeta: file.assignmentMeta || undefined,
+              categoryId: file.categoryId,
+            }));
+
+          let allFiles = mapFiles(firstResponse.files || []);
+          let pageToken: string | null = firstResponse.nextPageToken || null;
+          let pageCount = 0;
+          const MAX_PAGES = 100;
+
+          while (pageToken && pageCount < MAX_PAGES) {
+            pageCount += 1;
+            const response = await appsScriptClient.listFiles({ ...params, cursor: pageToken });
+            if (!response.success) break;
+            allFiles = [...allFiles, ...mapFiles(response.files || [])];
+            pageToken = response.nextPageToken || null;
+          }
+
+          userCache.set('inbox_all_files', allFiles, { configVersion });
+          return { files: allFiles, configVersion };
+        })();
+      }
+
+      try {
+        return await inboxHydrationRef.current;
+      } finally {
+        inboxHydrationRef.current = null;
+      }
+    };
 
     const loadCategory = async () => {
       setIsLoading(true);
@@ -117,10 +151,9 @@ const CategoryViewPage: React.FC = () => {
           configVersion: cachedConfigVersion ?? undefined,
         });
         if (!inboxCache || !Array.isArray(inboxCache) || inboxCache.length === 0) {
-          // Fallback: fetch files to hydrate cache for this category view.
-          const params: any = { pageSize: 1000 };
-          const firstResponse = await appsScriptClient.listFiles(params);
-          if (!firstResponse.success) {
+          // Fallback: hydrate inbox cache (guarded to avoid duplicate full scans)
+          const hydration = await hydrateInboxCache();
+          if (!hydration) {
             if (!isActive) return;
             setFiles([]);
             setIsInboxCacheEmpty(true);
@@ -128,47 +161,8 @@ const CategoryViewPage: React.FC = () => {
             return;
           }
 
-          const configVersion =
-            typeof firstResponse.configVersion === 'number' && Number.isFinite(firstResponse.configVersion)
-              ? firstResponse.configVersion
-              : undefined;
-          if (configVersion !== undefined) {
-            userCache.setConfigVersion(configVersion);
-          }
-
-          const mapFiles = (items: any[]) =>
-            items.map((file: any) => ({
-              id: file.id,
-              name: file.name,
-              mimeType: file.mimeType,
-              type: file.type || getFileType(file.mimeType),
-              modified: getRelativeTime(file.modifiedTime),
-              modifiedDate: new Date(file.modifiedTime),
-              selected: false,
-              parents: file.parents || [],
-              thumbnailLink: file.thumbnailLink,
-              iconLink: file.iconLink,
-              assignmentMeta: file.assignmentMeta || undefined,
-              categoryId: file.categoryId,
-            }));
-
-          let allFiles = mapFiles(firstResponse.files || []);
-          let pageToken: string | null = firstResponse.nextPageToken || null;
-          let pageCount = 0;
-          const MAX_PAGES = 100;
-
-          while (pageToken && pageCount < MAX_PAGES) {
-            pageCount += 1;
-            const response = await appsScriptClient.listFiles({ ...params, cursor: pageToken });
-            if (!response.success) break;
-            allFiles = [...allFiles, ...mapFiles(response.files || [])];
-            pageToken = response.nextPageToken || null;
-          }
-
-          userCache.set('inbox_all_files', allFiles, { configVersion });
-
           const folderId = foundCategory.driveFolderId;
-          const categoryFiles = allFiles
+          const categoryFiles = hydration.files
             .filter((file: any) => {
               const matchesAssignment = file.categoryId === categoryId;
               const matchesFolder =
@@ -184,7 +178,7 @@ const CategoryViewPage: React.FC = () => {
                 id: file.id,
                 name: file.name,
                 mimeType: file.mimeType,
-                type: file.type || getFileType(file.mimeType),
+                type: file.type || getFileTypeFromMime(file.mimeType),
                 modified: getRelativeTime(modifiedDate.toISOString()),
                 modifiedDate,
                 selected: false,
@@ -214,7 +208,7 @@ const CategoryViewPage: React.FC = () => {
             id: file.id,
             name: file.name,
             mimeType: file.mimeType,
-            type: file.type || getFileType(file.mimeType),
+            type: file.type || getFileTypeFromMime(file.mimeType),
             modified: file.modified || getRelativeTime(new Date(file.modifiedDate).toISOString()),
             modifiedDate: new Date(file.modifiedDate),
             selected: false,

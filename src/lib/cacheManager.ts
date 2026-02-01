@@ -157,7 +157,8 @@ class CacheManager {
    * Set review queue in cache
    */
   setReviewQueueCache(items: ReviewItem[]): void {
-    userCache.set(CACHE_KEYS.REVIEW_QUEUE, items, { ttl: 2 * 60 * 1000 }); // 2 min TTL
+    const configVersion = this.getCurrentConfigVersion();
+    userCache.set(CACHE_KEYS.REVIEW_QUEUE, items, { ttl: 2 * 60 * 1000, configVersion }); // 2 min TTL
   }
 
   /**

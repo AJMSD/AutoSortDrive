@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { authStorage } from '@/utils/authStorage';
 import './FilePreviewModal.css';
 
+// Modal that fetches authenticated preview/download URLs and renders previews or export options.
 interface FilePreviewModalProps {
   fileId: string;
   fileName: string;

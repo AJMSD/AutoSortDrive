@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { logger } from '@/utils/logger';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import ProfileDropdown from '@/components/common/ProfileDropdown';
@@ -9,19 +8,6 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Debug logging
-  React.useEffect(() => {
-    if (user) {
-      logger.debug('👤 Navbar: User loaded', { 
-        name: user.name, 
-        email: user.email,
-        hasPicture: !!user.picture 
-      });
-    } else {
-      logger.debug('👤 Navbar: No user');
-    }
-  }, [user]);
 
   const navItems = [
     { label: 'Inbox', path: '/inbox' },

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import './ProfileDropdown.css';
 
+// User menu with profile image fallbacks, theme toggle, and logout/navigation links.
 interface User {
   name?: string;
   email?: string;
@@ -45,11 +46,9 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user }) => {
   // Log when picture URL changes and reset states
   useEffect(() => {
     if (user.picture) {
-      logger.debug('🖼️ ProfileDropdown: image load start –', user.picture);
       setButtonImageSrc(user.picture);
       setDropdownImageSrc(user.picture);
     } else {
-      logger.debug('🖼️ ProfileDropdown: no picture URL, using fallback');
       setButtonImageSrc(null);
       setDropdownImageSrc(null);
     }
@@ -98,7 +97,6 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user }) => {
   };
 
   const handleButtonImageLoad = () => {
-    logger.debug('🖼️ ProfileDropdown (button): image loaded OK');
   };
 
   const handleButtonImageError = () => {
@@ -109,7 +107,6 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user }) => {
 
     if (buttonRetryCount < MAX_RETRY_COUNT) {
       const nextRetry = buttonRetryCount + 1;
-      logger.debug(`🖼️ ProfileDropdown (button): retrying (attempt ${nextRetry}/${MAX_RETRY_COUNT})`);
       setButtonRetryCount(nextRetry);
       // Trigger retry by briefly clearing and re-setting src
       setButtonImageSrc(null);
@@ -123,7 +120,6 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user }) => {
   };
 
   const handleDropdownImageLoad = () => {
-    logger.debug('🖼️ ProfileDropdown (dropdown): image loaded OK');
   };
 
   const handleDropdownImageError = () => {
@@ -134,7 +130,6 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user }) => {
 
     if (dropdownRetryCount < MAX_RETRY_COUNT) {
       const nextRetry = dropdownRetryCount + 1;
-      logger.debug(`🖼️ ProfileDropdown (dropdown): retrying (attempt ${nextRetry}/${MAX_RETRY_COUNT})`);
       setDropdownRetryCount(nextRetry);
       // Trigger retry by briefly clearing and re-setting src
       setDropdownImageSrc(null);

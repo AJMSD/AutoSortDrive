@@ -7,16 +7,13 @@ const TEMP_MAX = 1;
 
 const RATE_LIMIT_RPM = Number.parseInt(process.env.AI_RATE_LIMIT_RPM || '15', 10);
 const RATE_LIMIT_RPD = Number.parseInt(process.env.AI_RATE_LIMIT_RPD || '500', 10);
-const GLOBAL_DAILY_LIMIT = Number.parseInt(process.env.AI_GLOBAL_DAILY_LIMIT || '12000', 10);
-const GLOBAL_SOFT_LIMIT = Number.parseInt(process.env.AI_GLOBAL_SOFT_LIMIT || '9600', 10);
+const RATE_LIMIT_TTL_SECONDS = 172800;
 
 const UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 const inMemoryCounters = {
-  perMinute: new Map(),
-  perDay: new Map(),
-  globalDay: new Map(),
+  perUser: new Map(),
 };
 
 const nowMs = () => Date.now();
@@ -24,14 +21,6 @@ const minuteBucket = (ts) => Math.floor(ts / 60000);
 const dayBucket = (ts) => Math.floor(ts / 86400000);
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
-const getClientIp = (req) => {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.length > 0) {
-    return forwarded.split(',')[0].trim();
-  }
-  return req.socket?.remoteAddress || 'unknown';
-};
 
 const getBearerToken = (req) => {
   const auth = req.headers.authorization || '';
@@ -62,19 +51,23 @@ const rateLimitHit = (res, message, retryAfterSeconds = 60) => {
   res.status(429).json({ success: false, error: message });
 };
 
-const checkAndIncrement = (map, key, bucket, limit) => {
-  const entry = map.get(key);
-  if (entry && entry.bucket === bucket) {
-    if (entry.count >= limit) {
-      return { allowed: false, count: entry.count };
-    }
-    entry.count += 1;
-    map.set(key, entry);
-    return { allowed: true, count: entry.count };
+const parseLimiterState = (raw) => {
+  if (!raw) return null;
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!parsed) return null;
+    return {
+      m: Number(parsed.m) || 0,
+      mc: Number(parsed.mc) || 0,
+      d: Number(parsed.d) || 0,
+      dc: Number(parsed.dc) || 0,
+    };
+  } catch {
+    return null;
   }
-  map.set(key, { bucket, count: 1 });
-  return { allowed: true, count: 1 };
 };
+
+const buildLimiterState = (state) => JSON.stringify(state);
 
 const hasUpstash = Boolean(UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN);
 
@@ -89,28 +82,39 @@ const upstashFetch = async (path) => {
   return data?.result;
 };
 
-const kvIncrWithTtl = async (key, ttlSeconds) => {
-  const count = await upstashFetch(`/incr/${encodeURIComponent(key)}`);
-  if (count === 1 && ttlSeconds) {
-    await upstashFetch(`/expire/${encodeURIComponent(key)}/${ttlSeconds}`);
-  }
-  return count;
-};
+const checkAndUpdateUserLimit = async (key, now) => {
+  const minute = minuteBucket(now);
+  const day = dayBucket(now);
+  const stored = hasUpstash ? await upstashFetch(`/get/${encodeURIComponent(key)}`) : inMemoryCounters.perUser.get(key);
+  const current = parseLimiterState(stored) || { m: minute, mc: 0, d: day, dc: 0 };
+  const state = { ...current };
 
-const checkAndIncrementAsync = async (map, key, bucket, limit, ttlSeconds) => {
+  if (state.m !== minute) {
+    state.m = minute;
+    state.mc = 0;
+  }
+  if (state.d !== day) {
+    state.d = day;
+    state.dc = 0;
+  }
+
+  if (state.mc + 1 > RATE_LIMIT_RPM) {
+    return { allowed: false, message: 'Rate limit exceeded (per-user)', retryAfterSeconds: 60 };
+  }
+  if (state.dc + 1 > RATE_LIMIT_RPD) {
+    return { allowed: false, message: 'Daily quota exceeded (per-user)', retryAfterSeconds: 3600 };
+  }
+
+  state.mc += 1;
+  state.dc += 1;
+
   if (hasUpstash) {
-    const count = await kvIncrWithTtl(key, ttlSeconds);
-    return { allowed: count <= limit, count };
+    await upstashFetch(`/setex/${encodeURIComponent(key)}/${RATE_LIMIT_TTL_SECONDS}/${encodeURIComponent(buildLimiterState(state))}`);
+  } else {
+    inMemoryCounters.perUser.set(key, state);
   }
-  return checkAndIncrement(map, key, bucket, limit);
-};
 
-const recordMetric = async (name) => {
-  if (!hasUpstash) return;
-  try {
-    const day = dayBucket(Date.now());
-    await kvIncrWithTtl(`metric:${name}:${day}`, 172800);
-  } catch {}
+  return { allowed: true };
 };
 
 export default async function handler(req, res) {
@@ -133,37 +137,11 @@ export default async function handler(req, res) {
     }
 
     const userKey = tokenInfo.email || 'unknown-user';
-    const ipKey = getClientIp(req);
     const now = nowMs();
-    const minute = minuteBucket(now);
-    const day = dayBucket(now);
-
-    const perUserMinute = await checkAndIncrementAsync(inMemoryCounters.perMinute, `user:${userKey}:${minute}`, minute, RATE_LIMIT_RPM, 120);
-    if (!perUserMinute.allowed) {
-      await recordMetric('ai_429_user');
-      return rateLimitHit(res, 'Rate limit exceeded (per-user)', 60);
-    }
-
-    const perIpMinute = await checkAndIncrementAsync(inMemoryCounters.perMinute, `ip:${ipKey}:${minute}`, minute, RATE_LIMIT_RPM * 2, 120);
-    if (!perIpMinute.allowed) {
-      await recordMetric('ai_429_ip');
-      return rateLimitHit(res, 'Rate limit exceeded (per-ip)', 60);
-    }
-
-    const perUserDay = await checkAndIncrementAsync(inMemoryCounters.perDay, `user:${userKey}:${day}`, day, RATE_LIMIT_RPD, 172800);
-    if (!perUserDay.allowed) {
-      await recordMetric('ai_429_user_day');
-      return rateLimitHit(res, 'Daily quota exceeded (per-user)', 3600);
-    }
-
-    const globalDay = await checkAndIncrementAsync(inMemoryCounters.globalDay, `global:${day}`, day, GLOBAL_DAILY_LIMIT, 172800);
-    if (!globalDay.allowed) {
-      await recordMetric('ai_429_global');
-      return rateLimitHit(res, 'Daily quota exceeded (global)', 3600);
-    }
-
-    if (globalDay.count >= GLOBAL_SOFT_LIMIT) {
-      res.setHeader('X-AI-Budget-Warning', 'true');
+    const limiterKey = `rl:user:${userKey}`;
+    const limiter = await checkAndUpdateUserLimit(limiterKey, now);
+    if (!limiter.allowed) {
+      return rateLimitHit(res, limiter.message, limiter.retryAfterSeconds);
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -224,10 +202,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    await recordMetric('ai_success');
     res.status(200).json({ success: true, text });
   } catch (error) {
-    await recordMetric('ai_error');
     res.status(500).json({ success: false, error: error?.message || 'Gemini request failed' });
   }
 }

@@ -411,7 +411,7 @@ const buildFolderCategory = (folder: any): Category => {
   };
 };
 
-const callGemini = async (prompt: string) => {
+const callGemini = async (prompt: string, accessToken: string) => {
   const payload = {
     prompt,
     model: GEMINI_MODEL,
@@ -422,7 +422,10 @@ const callGemini = async (prompt: string) => {
   const requestJson = async (url: string, contentType: string) => {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': contentType },
+      headers: {
+        'Content-Type': contentType,
+        'Authorization': `Bearer ${accessToken}`,
+      },
       body: JSON.stringify(payload),
     });
 
@@ -848,7 +851,7 @@ class UnifiedClient {
     }
 
     const feedbackSummary = await this.getFeedbackSummaryText(accessToken, config, categories);
-    const aiResult = await this.aiCategorizeFile(file, categories, settings, feedbackSummary);
+    const aiResult = await this.aiCategorizeFile(accessToken, file, categories, settings, feedbackSummary);
     if (!aiResult) {
       return { decision: null, fromCache: false, contextKey };
     }
@@ -866,6 +869,7 @@ class UnifiedClient {
   }
 
   private async aiCategorizeFile(
+    accessToken: string,
     file: any,
     categories: Category[],
     settings: AiSettings,
@@ -886,7 +890,7 @@ class UnifiedClient {
     const fileLabel = file?.name || file?.fileName || file?.id || 'unknown';
 
     try {
-      const responseText = await callGemini(prompt);
+      const responseText = await callGemini(prompt, accessToken);
       if (!responseText) {
         logger.warn('AI response empty or missing', { file: fileLabel });
         return null;

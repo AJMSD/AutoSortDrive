@@ -34,20 +34,6 @@ const MobileRestriction: React.FC<{ children: React.ReactNode }> = ({ children }
             We're working hard to bring AutoSortDrive to mobile and tablet devices.
             For now, please access this app from your laptop or desktop computer.
           </p>
-          <div className="mobile-restriction-features">
-            <div className="mobile-restriction-feature">
-              <span className="feature-icon">🖥️</span>
-              <span className="feature-text">Better screen real estate</span>
-            </div>
-            <div className="mobile-restriction-feature">
-              <span className="feature-icon">⚡</span>
-              <span className="feature-text">Faster file operations</span>
-            </div>
-            <div className="mobile-restriction-feature">
-              <span className="feature-icon">🎯</span>
-              <span className="feature-text">Enhanced productivity</span>
-            </div>
-          </div>
         </div>
       </div>
     );

@@ -2349,7 +2349,10 @@ class UnifiedClient {
       if (settings.aiUseRulesFallback) {
         const matchedCategoryId = attemptRules();
         if (matchedCategoryId) {
-          return await assignCategory(matchedCategoryId);
+          return await assignCategory(matchedCategoryId, {
+            source: 'rules',
+            reason: 'Rule match',
+          });
         }
       }
 
@@ -2361,7 +2364,10 @@ class UnifiedClient {
 
     const matchedCategoryId = attemptRules();
     if (matchedCategoryId) {
-      return await assignCategory(matchedCategoryId);
+      return await assignCategory(matchedCategoryId, {
+        source: 'rules',
+        reason: 'Rule match',
+      });
     }
 
     if (settings.aiEnabled) {
@@ -2616,7 +2622,10 @@ class UnifiedClient {
       if (settings.aiUseRulesFallback) {
         const matchedCategoryId = attemptRules();
         if (matchedCategoryId) {
-          return await assignOptimistic(matchedCategoryId);
+          return await assignOptimistic(matchedCategoryId, {
+            source: 'rules',
+            reason: 'Rule match',
+          });
         }
       }
 
@@ -2628,7 +2637,10 @@ class UnifiedClient {
 
     const matchedCategoryId = attemptRules();
     if (matchedCategoryId) {
-      return await assignOptimistic(matchedCategoryId);
+      return await assignOptimistic(matchedCategoryId, {
+        source: 'rules',
+        reason: 'Rule match',
+      });
     }
 
     if (settings.aiEnabled) {

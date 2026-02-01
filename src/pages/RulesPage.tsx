@@ -3,6 +3,7 @@ import { logger } from '@/utils/logger';
 import toast from 'react-hot-toast';
 import Tooltip from '@/components/common/Tooltip';
 import { appsScriptClient } from '@/lib/appsScriptClient';
+import { config } from '@/lib/config';
 import { userCache } from '@/utils/userCache';
 import './RulesPage.css';
 
@@ -396,14 +397,16 @@ const RulesPage: React.FC = () => {
           <div className="ai-settings-header">
             <h2>AI & Rules Settings</h2>
             <button
-          <div className="ai-settings-notice">AI suggestions are disabled by the server. Enable VITE_AI_SUGGESTIONS_ENABLED to unlock.</div>
               className="settings-save-btn"
               onClick={handleSaveSettings}
-              disabled={isSavingSettings}
+              disabled={isSavingSettings || aiSuggestionsLocked}
             >
               {isSavingSettings ? 'Saving...' : 'Save Settings'}
             </button>
           </div>
+          {aiSuggestionsLocked && (
+            <div className="ai-settings-notice">AI suggestions are disabled by the server. Enable VITE_AI_SUGGESTIONS_ENABLED to unlock.</div>
+          )}
 
           <div className="ai-settings-grid">
             <label className="settings-toggle">

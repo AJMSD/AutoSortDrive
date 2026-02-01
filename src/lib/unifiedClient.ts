@@ -435,7 +435,16 @@ const callGemini = async (prompt: string, accessToken: string) => {
     }
 
     if (!response.ok) {
-      const error: any = new Error(`AI request failed: ${response.status}`);
+      let message = `AI request failed: ${response.status}`;
+      try {
+        const data = await response.json();
+        if (data?.error) {
+          message = data.error;
+        }
+      } catch {
+        // ignore parse errors
+      }
+      const error: any = new Error(message);
       error.status = response.status;
       throw error;
     }
@@ -843,7 +852,7 @@ class UnifiedClient {
     categories: Category[],
     rules: Rule[],
     settings: AiSettings
-  ): Promise<{ decision: AiDecisionCacheEntry | null; fromCache: boolean; contextKey: string }> {
+  ): Promise<{ decision: AiDecisionCacheEntry | null; fromCache: boolean; contextKey: string; rateLimitError?: string }> {
     const contextKey = await this.ensureAiDecisionCacheContext(accessToken, config, categories, rules, settings);
     const cached = this.getCachedAiDecision(config, fileId, file, categories, contextKey);
     if (cached) {
@@ -851,7 +860,20 @@ class UnifiedClient {
     }
 
     const feedbackSummary = await this.getFeedbackSummaryText(accessToken, config, categories);
-    const aiResult = await this.aiCategorizeFile(accessToken, file, categories, settings, feedbackSummary);
+    let aiResult: { categoryId: string | null; confidence: number; reason: string } | null = null;
+    try {
+      aiResult = await this.aiCategorizeFile(accessToken, file, categories, settings, feedbackSummary);
+    } catch (error: any) {
+      if (error?.status === 429) {
+        return {
+          decision: null,
+          fromCache: false,
+          contextKey,
+          rateLimitError: error?.message || 'Rate limit exceeded',
+        };
+      }
+      throw error;
+    }
     if (!aiResult) {
       return { decision: null, fromCache: false, contextKey };
     }
@@ -974,9 +996,14 @@ class UnifiedClient {
         logger.warn('AI categorization unauthorized:', { file: fileLabel });
         return null;
       }
-      if (status === 429 || status === 503) {
+      if (status === 429) {
         aiCooldownUntil = Date.now() + AI_COOLDOWN_WINDOW_MS;
-        logger.warn('AI rate limited or unavailable:', { file: fileLabel, status });
+        logger.warn('AI rate limited:', { file: fileLabel, status, message: error?.message });
+        throw error;
+      }
+      if (status === 503) {
+        aiCooldownUntil = Date.now() + AI_COOLDOWN_WINDOW_MS;
+        logger.warn('AI unavailable:', { file: fileLabel, status });
         return null;
       }
       logger.error('AI categorization failed:', { file: fileLabel, error });
@@ -2277,7 +2304,7 @@ class UnifiedClient {
     const attemptRules = () => getRuleMatchCategoryId(file, rules);
 
     if (settings.aiEnabled && settings.aiPrimary) {
-      const { decision, fromCache } = await this.resolveAiDecision(
+      const { decision, fromCache, rateLimitError } = await this.resolveAiDecision(
         accessToken,
         config,
         file,
@@ -2286,6 +2313,15 @@ class UnifiedClient {
         rules,
         settings
       );
+
+      if (rateLimitError) {
+        return {
+          success: false,
+          error: rateLimitError,
+          fileId,
+          fileName: file!.name,
+        };
+      }
 
       if (decision && !fromCache) {
         recordAiDecision(decision);
@@ -2329,7 +2365,7 @@ class UnifiedClient {
     }
 
     if (settings.aiEnabled) {
-      const { decision, fromCache } = await this.resolveAiDecision(
+      const { decision, fromCache, rateLimitError } = await this.resolveAiDecision(
         accessToken,
         config,
         file,
@@ -2338,6 +2374,15 @@ class UnifiedClient {
         rules,
         settings
       );
+
+      if (rateLimitError) {
+        return {
+          success: false,
+          error: rateLimitError,
+          fileId,
+          fileName: file!.name,
+        };
+      }
 
       if (decision && !fromCache) {
         recordAiDecision(decision);
@@ -2526,7 +2571,7 @@ class UnifiedClient {
     const attemptRules = () => getRuleMatchCategoryId(file, rules);
 
     if (settings.aiEnabled && settings.aiPrimary) {
-      const { decision, fromCache } = await this.resolveAiDecision(
+      const { decision, fromCache, rateLimitError } = await this.resolveAiDecision(
         accessToken,
         config,
         file,
@@ -2535,6 +2580,15 @@ class UnifiedClient {
         rules,
         settings
       );
+
+      if (rateLimitError) {
+        return {
+          success: false,
+          error: rateLimitError,
+          fileId,
+          fileName: file?.name || 'Unknown',
+        };
+      }
 
       if (decision && !fromCache) {
         recordAiDecision(decision);
@@ -2578,7 +2632,7 @@ class UnifiedClient {
     }
 
     if (settings.aiEnabled) {
-      const { decision, fromCache } = await this.resolveAiDecision(
+      const { decision, fromCache, rateLimitError } = await this.resolveAiDecision(
         accessToken,
         config,
         file,
@@ -2587,6 +2641,15 @@ class UnifiedClient {
         rules,
         settings
       );
+
+      if (rateLimitError) {
+        return {
+          success: false,
+          error: rateLimitError,
+          fileId,
+          fileName: file?.name || 'Unknown',
+        };
+      }
 
       if (decision && !fromCache) {
         recordAiDecision(decision);

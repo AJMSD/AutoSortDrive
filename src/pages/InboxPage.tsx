@@ -80,8 +80,8 @@ const writeAiCooldown = (until: number | null, remaining: number) => {
 const InboxPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const AI_MAX_FILES_PER_CALL = 30;
-  const AI_COOLDOWN_MS = 70 * 1000;
+  const AI_MAX_FILES_PER_CALL = 3;
+  const AI_COOLDOWN_MS = 60 * 1000;
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -583,61 +583,20 @@ const InboxPage: React.FC = () => {
   };
 
   const toggleFileSelection = (id: string) => {
-    const cooldownActive = aiCooldownUntil !== null && Date.now() < aiCooldownUntil;
-
     setFiles(prevFiles => {
-      const currentSelectedCount = prevFiles.filter(f => f.selected).length;
       const target = prevFiles.find(f => f.id === id);
       if (!target) return prevFiles;
-
-      if (!target.selected && cooldownActive && currentSelectedCount >= aiRemainingQuota) {
-        const secondsLeft = Math.ceil((aiCooldownUntil! - Date.now()) / 1000);
-        toast.error(
-          aiRemainingQuota > 0
-            ? `AI limit: only ${aiRemainingQuota} file${aiRemainingQuota === 1 ? '' : 's'} allowed during cooldown.`
-            : `AI cooldown active. Try again in ${secondsLeft}s.`
-        );
-        return prevFiles;
-      }
-
       return prevFiles.map(f => f.id === id ? { ...f, selected: !f.selected } : f);
     });
   };
 
   const toggleAllSelection = () => {
-    const cooldownActive = aiCooldownUntil !== null && Date.now() < aiCooldownUntil;
-
     setFiles(prevFiles => {
       const allSelected = prevFiles.length > 0 && prevFiles.every(f => f.selected);
-
       if (allSelected) {
         return prevFiles.map(f => (f.selected ? { ...f, selected: false } : f));
       }
-
-      const nonReviewFiles = prevFiles.filter(f => !f.inReview);
-      const maxSelectable = cooldownActive ? aiRemainingQuota : nonReviewFiles.length;
-      if (cooldownActive && maxSelectable <= 0) {
-        const secondsLeft = Math.ceil((aiCooldownUntil! - Date.now()) / 1000);
-        toast.error(`AI cooldown active. Try again in ${secondsLeft}s.`);
-        return prevFiles;
-      }
-
-      let remaining = maxSelectable;
-      const updated = prevFiles.map(f => {
-        if (f.selected) return f;
-        if (f.inReview) {
-          return { ...f, selected: true };
-        }
-        if (remaining <= 0) return f;
-        remaining -= 1;
-        return { ...f, selected: true };
-      });
-
-      if (cooldownActive && nonReviewFiles.length > maxSelectable) {
-        toast.error(`AI limit: only ${maxSelectable} file${maxSelectable === 1 ? '' : 's'} allowed during cooldown.`);
-      }
-
-      return updated;
+      return prevFiles.map(f => ({ ...f, selected: true }));
     });
   };
 
@@ -688,6 +647,11 @@ const InboxPage: React.FC = () => {
         const cooldownActive = aiCooldownUntil !== null && now < aiCooldownUntil;
         const remainingQuota = cooldownActive ? aiRemainingQuota : AI_MAX_FILES_PER_CALL;
 
+        if (selectedFiles.length > AI_MAX_FILES_PER_CALL) {
+          toast.error(`AI auto-assign is limited to ${AI_MAX_FILES_PER_CALL} files per minute.`);
+          return;
+        }
+
         if (selectedFiles.length > remainingQuota) {
           if (cooldownActive) {
             const secondsLeft = Math.ceil((aiCooldownUntil! - now) / 1000);
@@ -721,6 +685,15 @@ const InboxPage: React.FC = () => {
         const summary = response.summary || { assigned: 0, noMatch: 0, errors: 0, total: 0 };
         const assignedDetails = response.results?.assigned || [];
         const reviewDetails = response.results?.noMatch || [];
+        const errorDetails = response.results?.errors || [];
+        const rateLimitError = errorDetails.find((item: any) =>
+          typeof item?.error === 'string' && /rate limit|quota/i.test(item.error)
+        );
+
+        if (rateLimitError && assignedDetails.length === 0 && reviewDetails.length === 0) {
+          toast.error(rateLimitError.error || 'AI rate limit reached. Try again later.');
+          return;
+        }
         
         // Reload files from cache to reflect optimistic updates
         // The cache was already updated by batchAutoAssignOptimistic
@@ -901,7 +874,7 @@ const InboxPage: React.FC = () => {
   const hasSelectedInReview = files.some(f => f.selected && f.inReview);
   const isAiCooldownActive = aiCooldownUntil !== null && Date.now() < aiCooldownUntil;
   const aiQuotaRemaining = isAiCooldownActive ? aiRemainingQuota : AI_MAX_FILES_PER_CALL;
-  const aiSelectionLimitReached = isAiCooldownActive && selectedCount >= aiQuotaRemaining;
+  const aiSelectionLimitReached = selectedCount > AI_MAX_FILES_PER_CALL;
   const aiCooldownSecondsLeft = isAiCooldownActive ? Math.ceil((aiCooldownUntil! - Date.now()) / 1000) : 0;
 
   // Apply all filters client-side on cached data
@@ -1222,12 +1195,6 @@ const InboxPage: React.FC = () => {
               type="checkbox"
               checked={files.every(f => f.selected)}
               onChange={toggleAllSelection}
-              disabled={isAiCooldownActive && aiQuotaRemaining <= 0}
-              title={
-                isAiCooldownActive && aiQuotaRemaining <= 0
-                  ? `AI cooldown active. Try again in ${aiCooldownSecondsLeft}s.`
-                  : undefined
-              }
             />
           </label>
           <span className="file-header-name">Name</span>
@@ -1285,15 +1252,7 @@ const InboxPage: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={file.selected}
-                  disabled={aiSelectionLimitReached && !file.selected}
                   onChange={() => toggleFileSelection(file.id)}
-                  title={
-                    aiSelectionLimitReached && !file.selected
-                      ? aiQuotaRemaining > 0
-                        ? `AI limit: only ${aiQuotaRemaining} file${aiQuotaRemaining === 1 ? '' : 's'} allowed this cooldown.`
-                        : `AI cooldown active. Try again in ${aiCooldownSecondsLeft}s.`
-                      : undefined
-                  }
                 />
               </label>
 
@@ -1404,11 +1363,18 @@ const InboxPage: React.FC = () => {
                     <button
                       className="category-dropdown-item auto-option"
                       onClick={() => assignToCategory('auto')}
-                      disabled={isAssigning || hasSelectedInReview || (isAiCooldownActive && aiQuotaRemaining <= 0)}
+                      disabled={
+                        isAssigning ||
+                        hasSelectedInReview ||
+                        aiSelectionLimitReached ||
+                        (isAiCooldownActive && aiQuotaRemaining <= 0)
+                      }
                       title={
                         isAiCooldownActive && aiQuotaRemaining <= 0
                           ? `AI cooldown active. Try again in ${aiCooldownSecondsLeft}s.`
-                          : 'Automatically assign category based on your rules'
+                          : aiSelectionLimitReached
+                            ? `AI auto-assign is limited to ${AI_MAX_FILES_PER_CALL} files per minute.`
+                            : 'Automatically assign category based on your rules'
                       }
                     >
                       <span className="category-color auto-icon">

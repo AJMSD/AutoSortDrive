@@ -44,25 +44,28 @@ const isExcludedMimeType = (mimeType?: string) =>
 
 const AI_COOLDOWN_STORAGE_KEY = 'aiCooldown';
 
+type AiCooldownReason = 'daily' | 'cooldown' | null;
+
 const readAiCooldown = (defaultRemaining: number) => {
   try {
     const raw = sessionStorage.getItem(AI_COOLDOWN_STORAGE_KEY);
     if (!raw) {
-      return { until: null, remaining: defaultRemaining };
+      return { until: null, remaining: defaultRemaining, reason: null as AiCooldownReason };
     }
     const parsed = JSON.parse(raw);
     const until = typeof parsed?.until === 'number' ? parsed.until : null;
     const remaining = typeof parsed?.remaining === 'number' ? parsed.remaining : defaultRemaining;
+    const reason = parsed?.reason === 'daily' || parsed?.reason === 'cooldown' ? parsed.reason : null;
     if (until !== null && !Number.isFinite(until)) {
-      return { until: null, remaining: defaultRemaining };
+      return { until: null, remaining: defaultRemaining, reason: null as AiCooldownReason };
     }
-    return { until, remaining };
+    return { until, remaining, reason };
   } catch {
-    return { until: null, remaining: defaultRemaining };
+    return { until: null, remaining: defaultRemaining, reason: null as AiCooldownReason };
   }
 };
 
-const writeAiCooldown = (until: number | null, remaining: number) => {
+const writeAiCooldown = (until: number | null, remaining: number, reason: AiCooldownReason) => {
   try {
     if (until === null) {
       sessionStorage.removeItem(AI_COOLDOWN_STORAGE_KEY);
@@ -70,7 +73,7 @@ const writeAiCooldown = (until: number | null, remaining: number) => {
     }
     sessionStorage.setItem(
       AI_COOLDOWN_STORAGE_KEY,
-      JSON.stringify({ until, remaining })
+      JSON.stringify({ until, remaining, reason })
     );
   } catch {
     // Best-effort cache only; ignore storage failures.
@@ -102,6 +105,7 @@ const InboxPage: React.FC = () => {
   const initialCooldown = readAiCooldown(AI_MAX_FILES_PER_CALL);
   const [aiCooldownUntil, setAiCooldownUntil] = useState<number | null>(initialCooldown.until);
   const [aiRemainingQuota, setAiRemainingQuota] = useState<number>(initialCooldown.remaining);
+  const [aiCooldownReason, setAiCooldownReason] = useState<AiCooldownReason>(initialCooldown.reason);
   const aiSuggestionsLocked = !config.features.aiSuggestionsEnabled;
   const [itemsPerPage, setItemsPerPage] = useState(() => {
     const saved = localStorage.getItem('itemsPerPage');
@@ -607,11 +611,11 @@ const InboxPage: React.FC = () => {
 
   useEffect(() => {
     if (aiCooldownUntil !== null) {
-      writeAiCooldown(aiCooldownUntil, aiRemainingQuota);
+      writeAiCooldown(aiCooldownUntil, aiRemainingQuota, aiCooldownReason);
     } else {
-      writeAiCooldown(null, AI_MAX_FILES_PER_CALL);
+      writeAiCooldown(null, AI_MAX_FILES_PER_CALL, null);
     }
-  }, [aiCooldownUntil, aiRemainingQuota]);
+  }, [aiCooldownUntil, aiRemainingQuota, aiCooldownReason]);
 
   useEffect(() => {
     if (!aiCooldownUntil) return;
@@ -620,12 +624,14 @@ const InboxPage: React.FC = () => {
     if (remainingMs <= 0) {
       setAiCooldownUntil(null);
       setAiRemainingQuota(AI_MAX_FILES_PER_CALL);
+      setAiCooldownReason(null);
       return;
     }
 
     const timer = setTimeout(() => {
       setAiCooldownUntil(null);
       setAiRemainingQuota(AI_MAX_FILES_PER_CALL);
+      setAiCooldownReason(null);
     }, remainingMs);
 
     return () => clearTimeout(timer);
@@ -671,6 +677,7 @@ const InboxPage: React.FC = () => {
           const base = cooldownActive ? prev : AI_MAX_FILES_PER_CALL;
           return Math.max(0, base - selectedFiles.length);
         });
+        setAiCooldownReason('cooldown');
 
         // Use batch auto-assign endpoint with optimistic updates
         logger.debug(`🤖 Auto-assigning ${selectedFiles.length} files using rules...`);
@@ -691,7 +698,15 @@ const InboxPage: React.FC = () => {
         );
 
         if (rateLimitError && assignedDetails.length === 0 && reviewDetails.length === 0) {
-          toast.error(rateLimitError.error || 'AI rate limit reached. Try again later.');
+          const message = rateLimitError.error || 'AI rate limit reached. Try again later.';
+          if (/daily quota/i.test(message)) {
+            const nextDay = new Date();
+            nextDay.setHours(24, 0, 0, 0);
+            setAiCooldownUntil(nextDay.getTime());
+            setAiRemainingQuota(0);
+            setAiCooldownReason('daily');
+          }
+          toast.error(message);
           return;
         }
         
@@ -1016,6 +1031,11 @@ const InboxPage: React.FC = () => {
       {aiSuggestionsLocked && (
         <div className="ai-disabled-banner">
           AI suggestions are currently disabled by the server. You can still assign categories manually or use rules.
+        </div>
+      )}
+      {aiCooldownReason === 'daily' && aiCooldownUntil && Date.now() < aiCooldownUntil && (
+        <div className="ai-disabled-banner">
+          AI suggestions are disabled for today due to the daily limit. You can still assign categories manually.
         </div>
       )}
 

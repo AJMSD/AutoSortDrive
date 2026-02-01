@@ -44,6 +44,7 @@ AutoSortDrive uses:
 - **Google Identity Services (GIS)** for OAuth
 - **Apps Script Web App** (optional, for file/config APIs if you choose to use it)
 - **Gemini API** (via serverless proxy)
+- **Redis** for AI rate limiting
 - **Vercel** for hosting
 
 ## OAuth Scopes
@@ -89,8 +90,8 @@ The Apps Script backend is optional but required for the AI proxy endpoint.
 1) Create a new Apps Script project.
 2) Copy `backend/Code.gs` into the Apps Script editor.
 3) Deploy as a Web App:
-   - Execute as: **Me**
-   - Who has access: **Anyone** (or anyone with link)
+   - Execute as: **User accessing the web app**
+   - Who has access: **Anyone with a Google Account** (or anyone with link)
 4) Copy the deployment URL into `VITE_APPS_SCRIPT_DEPLOY_URL`.
 5) Add script properties:
    - `GEMINI_API_KEY` (your Gemini API key)
@@ -105,7 +106,7 @@ The prompt uses:
 
 Rate limits:
 - AI auto-assign is capped at **3 files per minute** in the UI.
-- Server enforces per-user RPM/RPD. If the daily quota is hit, AI auto-assign is disabled until the next day.
+- Server enforces per-user RPM/RPD. If the daily quota (**500 files**) is hit, AI auto-assign is disabled until the next day.
 
 ## Caching & Consistency
 - Caches are stored in `sessionStorage` per tab for privacy and performance.
@@ -162,6 +163,7 @@ npm run dev
 - Google Identity Services
 - Google Apps Script
 - Gemini API
+- Redis
 - React, Vite, TypeScript
 - react-hot-toast, axios, jszip
 - Font Awesome (icons)

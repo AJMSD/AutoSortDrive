@@ -136,7 +136,7 @@ const AboutPage: React.FC = () => {
         <div className="help-section">
           <h2 className="section-title">Limits & Performance Notes</h2>
           <ul className="help-list">
-            <li>AI auto-assign is limited to 3 files per minute. If the daily quota is hit, AI is disabled until the next day.</li>
+            <li>AI auto-assign is limited to 3 files per minute. If the daily quota (500 files) is hit, AI is disabled until the next day.</li>
             <li>Bulk download is capped at 30 files per request; Google Workspace files are exported (PDF, DOCX, etc.).</li>
             <li>Large Drives may require pagination; refresh if you suspect files are missing.</li>
           </ul>

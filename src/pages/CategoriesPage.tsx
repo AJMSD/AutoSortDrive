@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Tooltip from '@/components/common/Tooltip';
 import { appsScriptClient } from '@/lib/appsScriptClient';
+import { config } from '@/lib/config';
 import './CategoriesPage.css';
 
 interface Category {
@@ -42,6 +43,7 @@ const CategoriesPage: React.FC = () => {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const aiSuggestionsLocked = !config.features.aiSuggestionsEnabled;
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirmation, setShowBulkDeleteConfirmation] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -534,6 +536,12 @@ const CategoriesPage: React.FC = () => {
 
   return (
     <div className="categories-page">
+      {aiSuggestionsLocked && (
+        <div className="ai-disabled-banner">
+          AI suggestions are currently disabled by the server. Rules and manual categorization still work.
+        </div>
+      )}
+
       {/* Category Cards */}
       <div className="category-grid">
         {isLoading ? (

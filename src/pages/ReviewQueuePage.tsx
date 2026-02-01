@@ -7,6 +7,7 @@ import Tooltip from '@/components/common/Tooltip';
 import FileThumbnail from '@/components/common/FileThumbnail';
 import FilePreviewModal from '@/components/common/FilePreviewModal';
 import { appsScriptClient } from '@/lib/appsScriptClient';
+import { config } from '@/lib/config';
 import { downloadFilesAsZip } from '@/lib/bulkDownload';
 import './ReviewQueuePage.css';
 
@@ -68,6 +69,7 @@ const ReviewQueuePage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [previewFile, setPreviewFile] = useState<{ id: string; name: string; mimeType: string } | null>(null);
   const [aiReasonModalFile, setAiReasonModalFile] = useState<ReviewFile | null>(null);
+  const aiSuggestionsLocked = !config.features.aiSuggestionsEnabled;
   const [feedbackDraft, setFeedbackDraft] = useState<{
     fileId?: string;
     fileName?: string;
@@ -735,6 +737,12 @@ const ReviewQueuePage: React.FC = () => {
 
   return (
     <div className="review-queue-page">
+      {aiSuggestionsLocked && (
+        <div className="ai-disabled-banner">
+          AI suggestions are currently disabled by the server. Rule-based and manual review still work.
+        </div>
+      )}
+
       <div className="page-header"></div>
 
       {/* Review Files List */}
@@ -776,7 +784,7 @@ const ReviewQueuePage: React.FC = () => {
                 categories.find(category => category.id === file.suggestedCategoryId);
               const isRemoving = removingFiles.has(file.id);
               const isRejecting = rejectingFiles.has(file.id);
-              const canShowAiReason = status === 'ai-suggested' && !!file.reason;
+              const canShowAiReason = !aiSuggestionsLocked && status === 'ai-suggested' && !!file.reason;
 
               return (
                 <div
@@ -989,6 +997,7 @@ const ReviewQueuePage: React.FC = () => {
 
               <button
                 className="bulk-action-btn primary"
+                disabled={aiSuggestionsLocked}
                 onClick={bulkAcceptSuggestions}
                 disabled={isBulkProcessing}
               >

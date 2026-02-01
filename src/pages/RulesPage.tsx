@@ -39,6 +39,7 @@ const RulesPage: React.FC = () => {
   const [isSavingRule, setIsSavingRule] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [savingCategoryId, setSavingCategoryId] = useState<string | null>(null);
+  const aiSuggestionsLocked = !config.features.aiSuggestionsEnabled;
 
   const defaultSettings = {
     aiEnabled: false,
@@ -395,6 +396,7 @@ const RulesPage: React.FC = () => {
           <div className="ai-settings-header">
             <h2>AI & Rules Settings</h2>
             <button
+          <div className="ai-settings-notice">AI suggestions are disabled by the server. Enable VITE_AI_SUGGESTIONS_ENABLED to unlock.</div>
               className="settings-save-btn"
               onClick={handleSaveSettings}
               disabled={isSavingSettings}
@@ -418,7 +420,7 @@ const RulesPage: React.FC = () => {
                 type="checkbox"
                 checked={settings.aiPrimary}
                 onChange={(e) => handleSettingsChange('aiPrimary', e.target.checked)}
-                disabled={!settings.aiEnabled}
+                disabled={!settings.aiEnabled || aiSuggestionsLocked}
               />
               <span>Use AI before rules</span>
             </label>
@@ -428,7 +430,7 @@ const RulesPage: React.FC = () => {
                 type="checkbox"
                 checked={settings.aiUseRulesFallback}
                 onChange={(e) => handleSettingsChange('aiUseRulesFallback', e.target.checked)}
-                disabled={!settings.aiEnabled}
+                disabled={!settings.aiEnabled || aiSuggestionsLocked}
               />
               <span>Fallback to rules when AI is unsure</span>
             </label>
@@ -445,7 +447,7 @@ const RulesPage: React.FC = () => {
                 step="0.05"
                 value={settings.aiMinConfidence}
                 onChange={(e) => handleSettingsChange('aiMinConfidence', Number(e.target.value))}
-                disabled={!settings.aiEnabled}
+                disabled={!settings.aiEnabled || aiSuggestionsLocked}
               />
             </div>
           </div>

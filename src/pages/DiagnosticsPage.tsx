@@ -306,6 +306,12 @@ const DiagnosticsPage: React.FC = () => {
                   {config.features.aiEnabled ? 'Enabled' : 'Disabled'}
                 </dd>
               </div>
+              <div>
+                <dt className="text-gray-600 dark:text-gray-400">AI Suggestions Enabled:</dt>
+                <dd className="text-gray-900 dark:text-white">
+                  {config.features.aiSuggestionsEnabled ? 'Enabled' : 'Disabled'}
+                </dd>
+              </div>
             </dl>
           </div>
         </div>

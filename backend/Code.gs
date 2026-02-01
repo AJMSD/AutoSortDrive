@@ -50,6 +50,7 @@ const CONFIG = {
   DEFAULT_PAGE_SIZE: 50,
   MAX_PAGE_SIZE: 100,
   DEBUG: false,
+  AI_ENABLED: false,
 };
 
 // ============================================================================
@@ -155,6 +156,15 @@ function doPost(e) {
   try {
     const path = e.parameter.path || '';
     let body = {};
+
+    if (path === 'ai-categorize') {
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          success: false,
+          error: 'AI endpoint disabled',
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     
     // Parse JSON body if present
     if (e.postData && e.postData.contents) {
@@ -222,9 +232,6 @@ function doPost(e) {
         break;
       case 'review-add':
         response = handleReviewAdd(body);
-        break;
-      case 'ai-categorize':
-        response = handleAiCategorize(body);
         break;
       default:
         response = {
@@ -2366,6 +2373,9 @@ function handleReviewAdd(body) {
 
 function handleAiCategorize(body) {
   try {
+    if (!CONFIG.AI_ENABLED) {
+      return { success: false, error: 'AI disabled' };
+    }
     const prompt = body && body.prompt ? String(body.prompt) : '';
     const model = body && body.model ? String(body.model) : 'gemma-3n-e4b-it';
     const temperature = body && body.temperature !== undefined ? Number(body.temperature) : 0.2;

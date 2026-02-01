@@ -14,6 +14,7 @@ export const config = {
   },
   features: {
     aiEnabled: import.meta.env.VITE_ENABLE_AI_FEATURES === 'true',
+    aiSuggestionsEnabled: (import.meta.env.VITE_AI_SUGGESTIONS_ENABLED || 'true') === 'true',
     debugMode: import.meta.env.VITE_ENABLE_DEBUG_MODE === 'true',
   },
   env: import.meta.env.VITE_ENV as string,
@@ -46,6 +47,7 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
       apiKey: config.google.apiKey.substring(0, 10) + '...',
       appsScriptUrl: config.api.appsScriptUrl,
       aiEnabled: config.features.aiEnabled,
+      aiSuggestionsEnabled: config.features.aiSuggestionsEnabled,
     });
   }
 

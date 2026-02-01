@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { logger } from '@/utils/logger';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { appsScriptClient } from '@/lib/appsScriptClient';
+import { config } from '@/lib/config';
 import { userCache } from '@/utils/userCache';
 import toast from 'react-hot-toast';
 import Tooltip from '@/components/common/Tooltip';
@@ -63,8 +64,10 @@ const InboxPage: React.FC = () => {
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [aiCooldownUntil, setAiCooldownUntil] = useState<number | null>(null);
-  const [aiRemainingQuota, setAiRemainingQuota] = useState<number>(AI_MAX_FILES_PER_CALL);
+  const initialCooldown = readAiCooldown();
+  const [aiCooldownUntil, setAiCooldownUntil] = useState<number | null>(initialCooldown.until);
+  const [aiRemainingQuota, setAiRemainingQuota] = useState<number>(initialCooldown.remaining);
+  const aiSuggestionsLocked = !config.features.aiSuggestionsEnabled;
   const [itemsPerPage, setItemsPerPage] = useState(() => {
     const saved = localStorage.getItem('itemsPerPage');
     return saved ? parseInt(saved, 10) : 100;
@@ -609,6 +612,14 @@ const InboxPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (aiCooldownUntil !== null) {
+      writeAiCooldown(aiCooldownUntil, aiRemainingQuota);
+    } else {
+      writeAiCooldown(null, AI_MAX_FILES_PER_CALL);
+    }
+  }, [aiCooldownUntil, aiRemainingQuota]);
+
+  useEffect(() => {
     if (!aiCooldownUntil) return;
 
     const remainingMs = aiCooldownUntil - Date.now();
@@ -994,6 +1005,12 @@ const InboxPage: React.FC = () => {
   return (
     <div className="inbox-page">
       {/* Search & Filter Bar */}
+      {aiSuggestionsLocked && (
+        <div className="ai-disabled-banner">
+          AI suggestions are currently disabled by the server. You can still assign categories manually or use rules.
+        </div>
+      )}
+
       <div className="inbox-toolbar">
         <div className="search-container">
           <i className="fa-solid fa-magnifying-glass search-icon"></i>

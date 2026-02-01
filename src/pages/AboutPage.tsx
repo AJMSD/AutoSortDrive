@@ -74,6 +74,7 @@ const AboutPage: React.FC = () => {
               <p className="info-text">
                 The Review Queue combines stored items (manual or AI suggestions) with rule-based suggestions for
                 uncategorized files. Accepting or overriding clears the item and updates your assignments.
+                For large Drives, rule-based items may appear after pagination finishes.
               </p>
             </div>
             <div className="info-card">
@@ -108,6 +109,7 @@ const AboutPage: React.FC = () => {
             <li>
               <strong>Caching:</strong> data is cached per tab using session storage. If data looks stale, refresh or
               revisit the page to revalidate.
+              Optimistic updates apply immediately and roll back on failure.
             </li>
             <li>
               <strong>Rules order:</strong> if multiple rules match, the first match is used for suggestions.
@@ -117,8 +119,15 @@ const AboutPage: React.FC = () => {
               from the Review Queue.
             </li>
             <li>
+              <strong>AI cache:</strong> AI decisions are cached per file and reused until the file or rules change.
+              The AI only sees file metadata (name, type), not file contents.
+            </li>
+            <li>
               <strong>Rule suggestions:</strong> the queue may be based on cached or paginated Drive results, so large
               Drives can take longer to surface all matches.
+            </li>
+            <li>
+              <strong>Shortcuts:</strong> use Ctrl+Tab / Ctrl+Shift+Tab to cycle between main pages.
             </li>
           </ul>
         </div>

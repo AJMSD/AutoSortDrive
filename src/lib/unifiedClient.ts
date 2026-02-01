@@ -18,6 +18,7 @@
 
 import { driveClient } from './driveClient';
 import { logger } from '@/utils/logger';
+import toast from 'react-hot-toast';
 import { configManager, type AppConfig, type Category, type Rule, type AiSuggestionFeedback, type FeedbackSummary, type AiDecisionCacheEntry, type OnboardingState, type AssignmentMeta } from './configManager';
 import { cacheManager } from './cacheManager';
 import { withOptimisticUpdate } from './optimisticUpdate';
@@ -41,6 +42,10 @@ const DEFAULT_AI_SETTINGS = {
   aiMinConfidence: 0.9,
 };
 
+let aiCooldownUntil = 0;
+const AI_COOLDOWN_WINDOW_MS = 60 * 1000;
+let aiBudgetWarningShown = false;
+
 type AiSettings = {
   aiEnabled: boolean;
   aiPrimary: boolean;
@@ -52,6 +57,35 @@ const normalizeAiSettings = (settings?: Partial<AiSettings>): AiSettings => ({
   ...DEFAULT_AI_SETTINGS,
   ...(settings || {}),
 });
+
+const pruneAiDecisionCache = (config: AppConfig, options?: { maxEntries?: number; maxAgeDays?: number }) => {
+  const cache = config.aiDecisionCache || {};
+  const entries = Object.entries(cache);
+  if (entries.length === 0) return;
+
+  const maxEntries = options?.maxEntries ?? 500;
+  const maxAgeDays = options?.maxAgeDays ?? 30;
+  const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+
+  const filtered = entries.filter(([, entry]) => {
+    const decidedAt = Date.parse(entry?.decidedAt || '');
+    return Number.isFinite(decidedAt) && decidedAt >= cutoff;
+  });
+
+  filtered.sort((a, b) => Date.parse(b[1].decidedAt || '') - Date.parse(a[1].decidedAt || ''));
+  const trimmed = filtered.slice(0, maxEntries);
+
+  config.aiDecisionCache = Object.fromEntries(trimmed);
+};
+
+const pruneAiFeedback = (config: AppConfig, options?: { maxEntries?: number }) => {
+  if (!config.feedback || !Array.isArray(config.feedback.aiSuggestions)) return;
+  const maxEntries = options?.maxEntries ?? 200;
+  const sorted = config.feedback.aiSuggestions
+    .slice()
+    .sort((a, b) => Date.parse(b.createdAt || '') - Date.parse(a.createdAt || ''));
+  config.feedback.aiSuggestions = sorted.slice(0, maxEntries);
+};
 
 const cleanList = (values?: string[]) =>
   (values || []).map(value => value.trim()).filter(Boolean);
@@ -393,13 +427,22 @@ const callGemini = async (prompt: string) => {
       body: JSON.stringify(payload),
     });
 
+    if (response.headers.get('x-ai-budget-warning') === 'true' && !aiBudgetWarningShown) {
+      aiBudgetWarningShown = true;
+      toast.error('AI usage is nearing the daily limit. Suggestions may be limited.', { duration: 6000 });
+    }
+
     if (!response.ok) {
-      throw new Error(`AI request failed: ${response.status}`);
+      const error: any = new Error(`AI request failed: ${response.status}`);
+      error.status = response.status;
+      throw error;
     }
 
     const data = await response.json();
     if (!data?.success) {
-      throw new Error(data?.error || 'AI request failed');
+      const error: any = new Error(data?.error || 'AI request failed');
+      error.status = response.status;
+      throw error;
     }
 
     const text = typeof data?.text === 'string' ? data.text : '';
@@ -413,11 +456,7 @@ const callGemini = async (prompt: string) => {
   try {
     return await requestJson('/api/ai-categorize', 'application/json');
   } catch (error) {
-    const appsScriptUrl = config.api.appsScriptUrl;
-    if (!appsScriptUrl) {
-      throw error;
-    }
-    return await requestJson(`${appsScriptUrl}?path=ai-categorize`, 'text/plain;charset=UTF-8');
+    throw error;
   }
 };
 
@@ -840,6 +879,10 @@ class UnifiedClient {
       return null;
     }
 
+    if (aiCooldownUntil && Date.now() < aiCooldownUntil) {
+      return null;
+    }
+
     const prompt = buildAiPrompt(file, categories, feedbackSummary);
     const fileLabel = file?.name || file?.fileName || file?.id || 'unknown';
 
@@ -883,7 +926,7 @@ class UnifiedClient {
       }
 
       if (!parsed) {
-        logger.warn('AI response missing JSON payload', { file: fileLabel, responseText });
+        logger.warn('AI response missing JSON payload', { file: fileLabel });
         return null;
       }
 
@@ -914,7 +957,6 @@ class UnifiedClient {
       if (!categoryId) {
         logger.warn('AI response returned no suggestion', {
           file: fileLabel,
-          responseText,
           parsed,
           normalizedCategoryId: rawCategoryId,
           confidence,
@@ -923,7 +965,17 @@ class UnifiedClient {
       }
 
       return { categoryId, confidence, reason };
-    } catch (error) {
+    } catch (error: any) {
+      const status = error?.status;
+      if (status === 401) {
+        logger.warn('AI categorization unauthorized:', { file: fileLabel });
+        return null;
+      }
+      if (status === 429 || status === 503) {
+        aiCooldownUntil = Date.now() + AI_COOLDOWN_WINDOW_MS;
+        logger.warn('AI rate limited or unavailable:', { file: fileLabel, status });
+        return null;
+      }
       logger.error('AI categorization failed:', { file: fileLabel, error });
       return null;
     }
@@ -2149,6 +2201,7 @@ class UnifiedClient {
       if (decision.contextKey) {
         config.aiDecisionCacheContextKey = decision.contextKey;
       }
+      pruneAiDecisionCache(config);
     };
 
     const assignCategory = async (categoryId: string, meta?: AssignmentMeta) => {
@@ -2365,6 +2418,7 @@ class UnifiedClient {
       if (decision.contextKey) {
         config.aiDecisionCacheContextKey = decision.contextKey;
       }
+      pruneAiDecisionCache(config);
     };
 
     const assignOptimistic = async (categoryId: string, meta?: AssignmentMeta) => {

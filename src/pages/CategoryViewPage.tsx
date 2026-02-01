@@ -3,6 +3,7 @@ import { logger } from '@/utils/logger';
 import { userCache } from '@/utils/userCache';
 import { useParams, useNavigate } from 'react-router-dom';
 import { appsScriptClient } from '@/lib/appsScriptClient';
+import { config } from '@/lib/config';
 import toast from 'react-hot-toast';
 import FileThumbnail from '@/components/common/FileThumbnail';
 import FilePreviewModal from '@/components/common/FilePreviewModal';
@@ -52,6 +53,7 @@ const CategoryViewPage: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [previewFile, setPreviewFile] = useState<{id: string; name: string; mimeType: string} | null>(null);
   const [aiReasonFile, setAiReasonFile] = useState<FileItem | null>(null);
+  const aiSuggestionsLocked = !config.features.aiSuggestionsEnabled;
   
   const [category, setCategory] = useState<Category | null>(null);
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -554,7 +556,7 @@ const CategoryViewPage: React.FC = () => {
                 <span className="file-type-badge">{file.type}</span>
                 
                 <div className="file-actions">
-                  {file.assignmentMeta?.source === 'AI' && file.assignmentMeta?.reason && (
+                  {!aiSuggestionsLocked && file.assignmentMeta?.source === 'AI' && file.assignmentMeta?.reason && (
                     <button
                       className="ai-reason-btn"
                       onClick={(e) => {

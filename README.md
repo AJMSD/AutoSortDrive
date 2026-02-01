@@ -24,7 +24,7 @@ AutoSortDrive is a React + TypeScript web app for organizing Google Drive with c
 - Category management (manual categories or folder-backed categories)
 - Rule engine for auto-categorization (name, mime type, owner)
 - Review Queue that combines stored suggestions and rule-based suggestions
-- Optional AI categorization with confidence thresholds
+- Optional AI categorization with confidence thresholds and per-user rate limits
 - File preview for Google Workspace files, PDFs, images, and text
 - Bulk download (ZIP) with export formats for Google Workspace files
 - Session-based caching for performance and cross-page sync
@@ -42,8 +42,8 @@ AutoSortDrive is a React + TypeScript web app for organizing Google Drive with c
 AutoSortDrive uses:
 - **Google Drive API v3** (file listing, metadata, appDataFolder config)
 - **Google Identity Services (GIS)** for OAuth
-- **Apps Script Web App** (optional, for AI proxy)
-- **Gemini API** (via Apps Script or serverless proxy)
+- **Apps Script Web App** (optional, for file/config APIs if you choose to use it)
+- **Gemini API** (via serverless proxy)
 - **Vercel** for hosting
 
 ## OAuth Scopes
@@ -65,15 +65,22 @@ VITE_APPS_SCRIPT_DEPLOY_URL=your_apps_script_web_app_url
 VITE_API_BASE_URL=
 VITE_API_TIMEOUT=30000
 VITE_ENABLE_AI_FEATURES=true
+VITE_AI_SUGGESTIONS_ENABLED=true
 VITE_ENABLE_DEBUG_MODE=false
 VITE_ENV=development
-VITE_GEMINI_MODEL=gemma-3n-e4b-it
+VITE_GEMINI_MODEL=gemma-3-27b-it
 ```
 
 Notes:
 - `VITE_APPS_SCRIPT_DEPLOY_URL` is the deployed Apps Script URL.
 - `VITE_ENABLE_AI_FEATURES` toggles AI suggestions.
+- `VITE_AI_SUGGESTIONS_ENABLED` allows the server to disable AI suggestions globally.
 - `VITE_GEMINI_MODEL` is optional; defaults are handled in code.
+Additional server env (Vercel):
+- `AI_RATE_LIMIT_RPM` per-user requests per minute.
+- `AI_RATE_LIMIT_RPD` per-user requests per day.
+- `AI_ALLOWED_MODELS` comma-separated allowlist of Gemini models.
+- `GEMINI_MODEL` default model if the client does not pass one.
 
 ## Apps Script Backend
 The Apps Script backend is optional but required for the AI proxy endpoint.
@@ -89,14 +96,16 @@ The Apps Script backend is optional but required for the AI proxy endpoint.
    - `GEMINI_API_KEY` (your Gemini API key)
 
 ## AI Categorization
-AI is optional and can run via:
-- **Vercel serverless route** (`/api/ai-categorize`) if you’ve deployed it, or
-- **Apps Script** endpoint `?path=ai-categorize`
+AI is optional and runs via the **Vercel serverless route** (`/api/ai-categorize`).
 
 The prompt uses:
 - Category descriptions, keywords, and examples
 - Recent user corrections
 - Strict guidance to avoid categories with “exclusion” descriptions
+
+Rate limits:
+- AI auto-assign is capped at **3 files per minute** in the UI.
+- Server enforces per-user RPM/RPD. If the daily quota is hit, AI auto-assign is disabled until the next day.
 
 ## Caching & Consistency
 - Caches are stored in `sessionStorage` per tab for privacy and performance.

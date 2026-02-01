@@ -1,5 +1,5 @@
 const AI_FEATURES_ENABLED = process.env.AI_SUGGESTIONS_ENABLED !== 'false';
-const DEFAULT_ALLOWED_MODELS = ['gemma-3n-e4b-it'];
+const DEFAULT_ALLOWED_MODELS = ['gemma-3-27b-it'];
 const MAX_PROMPT_CHARS = Number.parseInt(process.env.AI_MAX_PROMPT_CHARS || '12000', 10);
 const MAX_OUTPUT_TOKENS_CAP = Number.parseInt(process.env.AI_MAX_OUTPUT_TOKENS || '512', 10);
 const TEMP_MIN = 0;

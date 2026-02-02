@@ -26,13 +26,7 @@ const FirstLoginModal: React.FC<FirstLoginModalProps> = ({ onClose, onGoToAbout 
   }, [autoCategorizeDecision, onClose]);
 
   return (
-    <div className="first-login-modal-overlay" onClick={() => {
-      if (!autoCategorizeDecision) {
-        setShowDecisionError(true);
-        return;
-      }
-      onClose(autoCategorizeDecision);
-    }}>
+    <div className="first-login-modal-overlay">
       <div
         className="first-login-modal"
         role="dialog"

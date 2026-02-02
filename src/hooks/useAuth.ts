@@ -137,6 +137,16 @@ type GoogleTokenResponse = {
   error_description?: string;
 };
 
+const AI_COOLDOWN_STORAGE_KEY = 'aiCooldown';
+
+const clearAiCooldownStorage = () => {
+  try {
+    sessionStorage.removeItem(AI_COOLDOWN_STORAGE_KEY);
+  } catch {
+    // Best-effort cleanup only.
+  }
+};
+
 /**
  * Validate OAuth configuration before attempting authentication
  * Helps catch common configuration errors early
@@ -167,6 +177,7 @@ export const useAuth = (): AuthContextType => {
         return stored as User;
       }
       authStorage.clearStoredUser();
+      clearAiCooldownStorage();
     }
     return null;
   });
@@ -262,6 +273,7 @@ export const useAuth = (): AuthContextType => {
                 expiresAt: Date.now() + (expiresInSeconds * 1000),
               };
               
+              clearAiCooldownStorage();
               setUser(userData);
               authStorage.setStoredUser(userData);
               
@@ -344,6 +356,7 @@ export const useAuth = (): AuthContextType => {
     
     // Clear all cached data (files, categories, etc.)
     userCache.clearAllCache();
+    clearAiCooldownStorage();
     
     setUser(null);
     authStorage.clearStoredUser();

@@ -32,7 +32,31 @@ const REQUIRED_SCOPES = parseCsv(process.env.GOOGLE_OAUTH_REQUIRED_SCOPES || pro
 
 const nowMs = () => Date.now();
 const minuteBucket = (ts) => Math.floor(ts / 60000);
-const dayBucket = (ts) => Math.floor(ts / 86400000);
+const PACIFIC_TIME_ZONE = 'America/Los_Angeles';
+
+const getDatePartsInTimeZone = (ts, timeZone) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(new Date(ts));
+  let year = 0;
+  let month = 0;
+  let day = 0;
+  for (const part of parts) {
+    if (part.type === 'year') year = Number(part.value);
+    if (part.type === 'month') month = Number(part.value);
+    if (part.type === 'day') day = Number(part.value);
+  }
+  return { year, month, day };
+};
+
+const dayBucket = (ts) => {
+  const { year, month, day } = getDatePartsInTimeZone(ts, PACIFIC_TIME_ZONE);
+  return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+};
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 

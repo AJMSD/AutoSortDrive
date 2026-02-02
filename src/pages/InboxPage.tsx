@@ -45,6 +45,7 @@ const isExcludedMimeType = (mimeType?: string) =>
   mimeType === FOLDER_MIME_TYPE || mimeType === SHORTCUT_MIME_TYPE;
 
 const AI_COOLDOWN_STORAGE_KEY = 'aiCooldown';
+const PACIFIC_TIME_ZONE = 'America/Los_Angeles';
 
 type AiCooldownReason = 'daily' | 'cooldown' | null;
 
@@ -80,6 +81,53 @@ const writeAiCooldown = (until: number | null, remaining: number, reason: AiCool
   } catch {
     // Best-effort cache only; ignore storage failures.
   }
+};
+
+const getDatePartsInTimeZone = (date: Date, timeZone: string) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(date);
+  let year = 0;
+  let month = 0;
+  let day = 0;
+  parts.forEach(part => {
+    if (part.type === 'year') year = Number(part.value);
+    if (part.type === 'month') month = Number(part.value);
+    if (part.type === 'day') day = Number(part.value);
+  });
+  return { year, month, day };
+};
+
+const getTimeZoneOffsetMinutes = (date: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    timeZoneName: 'shortOffset',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const tzName = parts.find(part => part.type === 'timeZoneName')?.value || '';
+  const match = tzName.match(/(?:GMT|UTC)([+-]\d{1,2})(?::(\d{2}))?/);
+  if (match) {
+    const hours = Number(match[1]);
+    const minutes = match[2] ? Number(match[2]) : 0;
+    return hours * 60 + (hours < 0 ? -minutes : minutes);
+  }
+  if (tzName === 'PST') return -8 * 60;
+  if (tzName === 'PDT') return -7 * 60;
+  return 0;
+};
+
+const getNextPacificMidnightTimestamp = (baseDate: Date) => {
+  const { year, month, day } = getDatePartsInTimeZone(baseDate, PACIFIC_TIME_ZONE);
+  const utcMidnight = Date.UTC(year, month - 1, day + 1, 0, 0, 0);
+  const offsetMinutes = getTimeZoneOffsetMinutes(new Date(utcMidnight), PACIFIC_TIME_ZONE);
+  return utcMidnight - offsetMinutes * 60 * 1000;
 };
 
 const InboxPage: React.FC = () => {
@@ -678,9 +726,8 @@ const InboxPage: React.FC = () => {
         if (rateLimitError && assignedDetails.length === 0 && reviewDetails.length === 0) {
           const message = rateLimitError.error || 'AI rate limit reached. Try again later.';
           if (/daily quota/i.test(message)) {
-            const nextDay = new Date();
-            nextDay.setHours(24, 0, 0, 0);
-            setAiCooldownUntil(nextDay.getTime());
+            const resetAt = getNextPacificMidnightTimestamp(new Date());
+            setAiCooldownUntil(resetAt);
             setAiRemainingQuota(0);
             setAiCooldownReason('daily');
           }
